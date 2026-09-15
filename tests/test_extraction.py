@@ -203,3 +203,61 @@ class TestConsistency:
         frame = pd.DataFrame([_typed_values()], index=pd.Index(["a"]))
         with pytest.raises(ValueError, match="at least 2 runs"):
             consistency_report([frame])
+
+
+class TestTextPrep:
+    """Narrative trimming: the fix for silent context overflow."""
+
+    def test_trims_at_statement_header(self):
+        from edse.textprep import prepare
+
+        narrative = "Acme reports results. " * 120  # ~2.6k chars
+        doc = narrative + "\nCONDENSED CONSOLIDATED STATEMENTS OF OPERATIONS\n" + "1 2 3 " * 5000
+        out = prepare(doc)
+        assert out.trimmed_at_marker
+        assert "CONDENSED CONSOLIDATED" not in out.text
+        assert "Acme reports results" in out.text
+        assert out.chars < out.original_chars / 2
+
+    def test_does_not_trim_an_early_marker(self):
+        """A marker in the first paragraph is a contents entry, not the break."""
+        from edse.textprep import prepare
+
+        doc = "CONSOLIDATED BALANCE SHEETS\n" + "real narrative content. " * 200
+        out = prepare(doc)
+        assert not out.trimmed_at_marker
+        assert out.text  # the release survives intact
+
+    def test_no_marker_leaves_text_alone(self):
+        from edse.textprep import prepare
+
+        doc = "Acme reports results. " * 100
+        out = prepare(doc)
+        assert not out.trimmed_at_marker
+        assert not out.hard_truncated
+        assert out.chars == len(doc.strip())
+
+    def test_hard_cap_is_recorded_not_silent(self):
+        """A truncation that drops content must be visible downstream."""
+        from edse.textprep import prepare
+
+        out = prepare("word " * 10000, max_chars=5000)
+        assert out.hard_truncated
+        assert out.chars <= 5000
+        assert out.meta()["hard_truncated"] is True
+
+    def test_cap_disabled_by_none(self):
+        from edse.textprep import prepare
+
+        out = prepare("word " * 10000, max_chars=None)
+        assert not out.hard_truncated
+
+    def test_metadata_round_trip(self):
+        from edse.textprep import prepare
+
+        out = prepare("Acme. " * 500)
+        meta = out.meta()
+        assert meta["original_chars"] == len("Acme. " * 500)
+        assert set(meta) == {
+            "original_chars", "prepared_chars", "trimmed_at_marker", "hard_truncated",
+        }

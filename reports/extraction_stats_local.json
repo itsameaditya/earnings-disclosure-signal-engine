@@ -1,0 +1,12 @@
+{
+  "extractor": "local",
+  "n_ok": 30,
+  "n_failed": 0,
+  "total_cost_usd": 0.0,
+  "cost_per_doc_usd": 0.0,
+  "mean_latency_s": 12.08,
+  "input_tokens": 42718,
+  "output_tokens": 6550,
+  "cache_read_tokens": 0,
+  "cache_hit_rate": 0.0
+}

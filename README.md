@@ -4,6 +4,11 @@ An LLM extracts structured claims from SEC 8-K earnings releases; those claims b
 features in a calibrated model predicting post-announcement volatility, with an eval
 harness that measures extraction quality independently of downstream performance.
 
+**Runs end-to-end for free.** The default extractor is a local model via Ollama, so
+the whole pipeline reproduces on a laptop at zero API cost. A Claude backend is fully
+implemented behind the same interface for anyone with a key, and comparing the two is
+itself one of the results.
+
 The question the project actually answers: **does an LLM reading an earnings release
 tell you anything about upcoming volatility that the market's own state doesn't
 already?** That framing forces two things most "LLM + finance" projects skip — a
@@ -32,6 +37,14 @@ Two evaluation loops run independently:
 |---|---|---|
 | **Extraction** | Are the claims correct? | field accuracy, macro-F1, document exact-match, abstention precision/recall, self-consistency, confidence calibration |
 | **Prediction** | Do the claims carry signal? | AUC, Brier skill, ECE, reliability curve, controls-only vs. claims-only vs. combined |
+
+Three extractors implement one interface, so all of it runs unchanged on any of them:
+
+| Extractor | Cost | What it is |
+|---|---|---|
+| `local` (default) | free | `qwen2.5:7b` via Ollama, schema-constrained decoding |
+| `claude` | ~$18 for the corpus | Claude API with structured outputs |
+| `baseline` | free | Rule-based regex/keyword extractor - the control |
 
 Keeping them separate matters: a model can score well on volatility while the
 extraction is mostly wrong (the features act as noisy sector dummies), and
@@ -72,6 +85,40 @@ measured separately: over-abstaining discards signal, under-abstaining fabricate
 
 ---
 
+## Two findings from building it
+
+**Prompts are model-specific artifacts, and the failure is silent.** The system
+prompt written for Claude is ~1,800 tokens and leans hard on abstention ("a wrong
+confident answer is far more costly than an abstention"). On `qwen2.5:7b` that
+framing dominated the model: measured across 12 releases that state a revenue
+percentage in plain text, it produced a **null `revenue_yoy_pct` on 100% of them**,
+and `margin_direction: not_stated` on 100%. A 40-token prompt recovered **100%
+recall** on the same documents. An intermediate version carrying about half the
+rules scored 75% - for this model, more instruction text monotonically increased
+abstention.
+
+The important part is *how* it failed. Every response was valid JSON, schema-conformant,
+and confidently structured. Nothing downstream would have flagged it; the feature would
+simply have been a constant column, and the ablation would have quietly reported that
+LLM claims add no signal. Schema validation cannot catch this. Only measuring
+extraction against known answers can. Both prompts are kept side by side in the repo
+(`extract/llm.py`, `extract/local.py`).
+
+**Half of an earnings release is not an earnings release.** Press releases are a
+narrative followed by financial statement tables. Every field in the schema is
+answerable from the narrative; none needs the tables. Trimming at the statement
+header (`textprep.py`) cut the corpus **54%**, and - more importantly - took the
+share of documents overflowing a 16k context window from **11.2% to zero**. Those
+would have been truncated silently, producing confident claims based on partial text.
+
+A third, smaller lesson: while measuring the above, a throwaway regex written to
+approximate ground truth was itself wrong twice (`[^.]` doesn't match inside
+"$109.4 billion"), first understating the model's recall and then overstating its
+fabrication rate. That is the argument for a hand-labeled gold set rather than a
+convenient proxy.
+
+---
+
 ## Results
 
 <!-- RESULTS -->
@@ -89,18 +136,29 @@ cp .env.example .env          # add EDGAR_USER_AGENT (required) and ANTHROPIC_AP
 and the failure mode is silent (empty result sets), so the code refuses to start
 without one.
 
+For the free local extractor:
+
+```bash
+brew install ollama && ollama serve &
+ollama pull qwen2.5:7b
+```
+
 ```bash
 edse universe                 # resolve tickers -> CIKs via SEC's own mapping
 edse ingest                   # download 8-K Item 2.02 press-release exhibits
 edse prices                   # daily OHLCV for the universe + SPY
 edse label                    # event-time alignment and the volatility target
 
-edse extract --extractor baseline     # free, no API key
-edse extract --extractor claude       # requires ANTHROPIC_API_KEY
-edse extract --extractor claude --dry-run   # coverage + cost, no API calls
+edse extract --extractor local        # free, local model (default)
+edse extract --extractor baseline     # free, rules only
+edse extract --extractor claude       # needs ANTHROPIC_API_KEY
 
-edse train --extractor claude         # ablation, calibration, figures
+edse train --extractor local          # ablation, calibration, figures
+edse report                           # assemble reports/REPORT.md
 ```
+
+`ANTHROPIC_API_KEY` is only needed for `--extractor claude`. Everything else, including
+every figure and metric in this README, runs without it.
 
 Extraction quality (needs hand labels):
 

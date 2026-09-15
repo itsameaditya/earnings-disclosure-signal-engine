@@ -14,6 +14,16 @@ extraction:
   # `quality_model` is run on a subset for the model-comparison eval.
   model: "claude-haiku-4-5"
   quality_model: "claude-opus-5"
+  # Free local backend via Ollama, so the whole project reproduces at zero cost.
+  # num_ctx must exceed system prompt (~1.8k) + document (median ~7.8k tokens);
+  # Ollama defaults to 4096, which would silently truncate most releases.
+  local_model: "qwen2.5:7b"
+  # 32k covers every document in this corpus after narrative trimming
+  # (max prepared length ~64k chars ~= 17k tokens), so nothing is silently cut.
+  local_num_ctx: 32768
+  # Safety net for filers whose layout has no recognizable statement header.
+  # Trimming alone handles 82% of the corpus; this catches the rest.
+  max_document_chars: 70000
   max_tokens: 4096
   temperature: 0.0
   # Concurrency: stay under the API rate limit; extraction is cached on disk,

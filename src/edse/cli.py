@@ -164,6 +164,18 @@ def _build_extractor(cfg: Config, kind: str, model: str | None, temperature: flo
         from .extract.baseline import RuleBasedExtractor
 
         return RuleBasedExtractor()
+
+    if kind == "local":
+        from .extract.local import OllamaExtractor
+
+        extractor = OllamaExtractor(
+            model=model or cfg.extraction["local_model"],
+            temperature=temperature,
+            num_ctx=cfg.extraction["local_num_ctx"],
+        )
+        extractor.health_check()  # fail now, not 400 documents in
+        return extractor
+
     from .extract.llm import ClaudeExtractor
 
     if not cfg.anthropic_api_key:
@@ -193,14 +205,35 @@ def cmd_extract(args, cfg: Config) -> None:
     extractor = _build_extractor(cfg, args.extractor, args.model, args.temperature)
     cache = ExtractionCache(INTERIM_DIR / "extractions")
 
-    tasks = []
+    from .textprep import prepare
+
+    max_chars = cfg.extraction.get("max_document_chars")
+    tasks, prepared_docs = [], []
     for rec in filings.to_dict("records"):
         doc = DOCUMENTS_DIR / f"{rec['accession']}.txt"
         if not doc.exists():
             continue
-        text = doc.read_text()
-        key = cache.key(extractor.name, extractor.model, extractor.prompt_version, text)
-        tasks.append((rec, text, key))
+        # Trim financial-statement tables before extraction; every schema field
+        # is answerable from the narrative, and the tables are what push
+        # documents past the context window.
+        prepped = prepare(doc.read_text(), max_chars=max_chars)
+        prepared_docs.append(prepped)
+        key = cache.key(
+            extractor.name, extractor.model, extractor.prompt_version, prepped.text
+        )
+        tasks.append((rec, prepped.text, key))
+
+    if prepared_docs:
+        trimmed = sum(d.trimmed_at_marker for d in prepared_docs)
+        hard = sum(d.hard_truncated for d in prepared_docs)
+        saved = 1 - sum(d.chars for d in prepared_docs) / sum(
+            d.original_chars for d in prepared_docs
+        )
+        print(
+            f"document prep: {trimmed}/{len(prepared_docs)} trimmed at a statement "
+            f"header, {saved:.0%} of characters removed"
+            + (f", {hard} hard-truncated at the cap" if hard else "")
+        )
 
     cached = {k: cache.get(k) for _, _, k in tasks}
     pending = [t for t in tasks if cached.get(t[2]) is None]
@@ -224,7 +257,9 @@ def cmd_extract(args, cfg: Config) -> None:
         return result
 
     if pending:
-        workers = 1 if args.extractor == "baseline" else cfg.extraction["max_workers"]
+        # Local inference is GPU-bound on one machine: concurrent requests queue
+        # inside Ollama and add no throughput, so keep it serial.
+        workers = cfg.extraction["max_workers"] if args.extractor == "claude" else 1
         with ThreadPoolExecutor(max_workers=workers) as pool:
             futures = {pool.submit(run, t): t for t in pending}
             for i, future in enumerate(as_completed(futures), 1):
@@ -354,7 +389,7 @@ def cmd_train(args, cfg: Config) -> None:
     table = pd.DataFrame([r.row() for r in results])
     print("\n" + table.to_string(index=False))
 
-    claim_source = "Claude" if args.extractor == "claude" else "rule-based"
+    claim_source = {"claude": "Claude", "local": "local-LLM"}.get(args.extractor, "rule-based")
     plot_ablation(results, FIGURES_DIR / f"ablation_{args.extractor}.png", claim_source)
     combined = next((r for r in results if r.name == "controls_plus_claims"), results[-1])
     plot_reliability(
@@ -413,7 +448,10 @@ def main(argv: list[str] | None = None) -> int:
     p.set_defaults(func=cmd_prices)
 
     p = sub.add_parser("extract", help="extract structured claims")
-    p.add_argument("--extractor", choices=["claude", "baseline"], default="claude")
+    p.add_argument(
+        "--extractor", choices=["claude", "local", "baseline"], default="local",
+        help="local = free Ollama model (default); claude = hosted API; baseline = rules",
+    )
     p.add_argument("--model", default=None, help="override the configured model")
     p.add_argument("--temperature", type=float, default=None)
     p.add_argument("--limit", type=int, default=None)
@@ -424,7 +462,7 @@ def main(argv: list[str] | None = None) -> int:
     p.set_defaults(func=cmd_label)
 
     p = sub.add_parser("train", help="run the ablation and write the model report")
-    p.add_argument("--extractor", default="claude")
+    p.add_argument("--extractor", default="local")
     p.add_argument("--estimator", choices=["gbm", "logistic"], default="gbm")
     p.set_defaults(func=cmd_train)
 
