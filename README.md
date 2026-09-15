@@ -121,7 +121,54 @@ convenient proxy.
 
 ## Results
 
-<!-- RESULTS -->
+> **Status:** the local-model extraction over all 1,447 filings is currently running
+> (~7 hours on an M5 laptop, free). The dataset, the rule-based control, and the
+> methodology below are final; the local-LLM row lands in a follow-up commit.
+> `reports/REPORT.md` is regenerated from pipeline artifacts by `edse report`.
+
+### Dataset
+
+**1,445 labeled earnings events**, 40 large-cap issuers, 2018-01-12 to 2026-08-20.
+Positive rate (post-announcement vol > 1.5x the pre-announcement baseline): **46.9%**.
+Median vol expansion across all events: **1.44x** - earnings do raise volatility,
+which is the sanity check the target has to pass before anything else is worth reading.
+
+Release timing, which is the whole reason event-day alignment gets its own module:
+
+| timing | events | share |
+|---|---:|---:|
+| pre-market | 942 | 65.2% |
+| after-hours | 489 | 33.8% |
+| intraday | 13 | 0.9% |
+
+A third of this sample cannot trade on the news until the next session. Treating
+`filing_date` as the event day would put the announcement's own return inside the
+"pre-announcement" baseline for every one of those 489 events.
+
+### Prediction - rule-based control
+
+| feature set | AUC | Brier | Brier skill | ECE |
+|---|---:|---:|---:|---:|
+| controls only | 0.686 | 0.225 | +0.092 | 0.061 |
+| claims only | 0.553 | 0.246 | +0.007 | 0.080 |
+| controls + claims | 0.685 | 0.226 | +0.087 | 0.064 |
+
+**Keyword-extracted claims add nothing** (-0.001 AUC, -0.004 Brier skill). Market
+state alone reaches 0.686 AUC, and pre-announcement realized volatility is by far the
+strongest single feature (+0.091 AUC drop under permutation).
+
+That is the bar. It is also the result that makes the ablation worth running: an
+extractor can produce 1,447 clean, schema-valid records and still contribute zero
+signal. Whether a real LLM clears this bar is the open question this repo exists
+to answer, and a negative answer there would be reported just as plainly.
+
+![ablation](reports/figures/ablation_baseline.png)
+
+The calibration is genuinely good - predictions track observed frequency closely -
+but the histogram underneath is the honest part: predictions span roughly 0.14-0.62,
+so the model is separating events weakly even where it is well-calibrated.
+
+![reliability](reports/figures/reliability_baseline.png)
 
 ---
 
