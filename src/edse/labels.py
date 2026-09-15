@@ -41,7 +41,7 @@ class EventWindow:
     """Resolved event timing for one filing."""
 
     t0: pd.Timestamp        # first session whose return can reflect the news
-    release_timing: str     # "pre_market" | "intraday" | "after_hours"
+    release_timing: str     # "pre_market" | "intraday" | "after_hours" | "non_session"
 
 
 def resolve_event_day(

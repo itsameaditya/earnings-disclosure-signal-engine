@@ -155,10 +155,12 @@ Release timing, which is the whole reason event-day alignment gets its own modul
 | pre-market | 942 | 65.2% |
 | after-hours | 489 | 33.8% |
 | intraday | 13 | 0.9% |
+| non-session | 1 | 0.1% |
 
 A third of this sample cannot trade on the news until the next session. Treating
 `filing_date` as the event day would put the announcement's own return inside the
-"pre-announcement" baseline for every one of those 489 events.
+"pre-announcement" baseline for every one of those 489 events - and for the
+`non_session` release, which crossed the wire on a day the market never opened.
 
 ### Prediction - rule-based control
 
