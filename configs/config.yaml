@@ -1,0 +1,53 @@
+# Earnings Disclosure Signal Engine - pipeline configuration.
+
+edgar:
+  # 8-K Item 2.02 == "Results of Operations and Financial Condition" (the earnings 8-K).
+  required_item: "2.02"
+  start_date: "2018-01-01"
+  end_date: "2026-09-01"
+  # SEC fair-access limit is 10 req/s; we stay well under it.
+  requests_per_second: 6.0
+  max_exhibit_chars: 120000
+
+extraction:
+  # Bulk extractor. Haiku 4.5 is the cost/quality choice for ~1.2k documents;
+  # `quality_model` is run on a subset for the model-comparison eval.
+  model: "claude-haiku-4-5"
+  quality_model: "claude-opus-5"
+  max_tokens: 4096
+  temperature: 0.0
+  # Concurrency: stay under the API rate limit; extraction is cached on disk,
+  # so a re-run after a crash costs nothing for already-extracted filings.
+  max_workers: 8
+  cache_dir: "data/interim/extractions"
+
+labels:
+  # Realized-vol windows in trading days, relative to the event day t0.
+  # t0 is the first session that can trade on the news (see labels.py for the
+  # acceptance-time rule that handles after-hours releases).
+  post_window: 5
+  pre_window: 20
+  # Binary target: did post-announcement realized vol exceed the pre-announcement
+  # baseline by more than this multiple? 1.5 == "50% vol expansion".
+  expansion_threshold: 1.5
+  # Trading days of price history required on each side; events with gaps are dropped.
+  min_pre_obs: 15
+  min_post_obs: 5
+
+model:
+  # Time-ordered splits only. No shuffling: every fold trains on the past and
+  # tests on the future, with an embargo gap to prevent window overlap leakage.
+  n_splits: 5
+  embargo_days: 10
+  test_fraction: 0.2
+  calibration_method: "isotonic"
+  random_state: 42
+
+eval:
+  # Numeric extraction counts as correct within this relative tolerance.
+  numeric_rtol: 0.02
+  # Self-consistency: repeat extractions at temperature>0 to measure stability
+  # without needing gold labels.
+  consistency_runs: 3
+  consistency_temperature: 1.0
+  consistency_sample_size: 40

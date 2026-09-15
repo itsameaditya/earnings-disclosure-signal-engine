@@ -1,0 +1,92 @@
+{
+  "extractor": "baseline",
+  "estimator": "gbm",
+  "n_events": 1445,
+  "results": [
+    {
+      "model": "controls_only",
+      "n_train": 1155,
+      "n_test": 289,
+      "base_rate": 0.4736,
+      "auc": 0.6864,
+      "brier": 0.2253,
+      "brier_skill": 0.0916,
+      "log_loss": 0.6424,
+      "ece": 0.061
+    },
+    {
+      "model": "claims_only",
+      "n_train": 1155,
+      "n_test": 289,
+      "base_rate": 0.4736,
+      "auc": 0.5529,
+      "brier": 0.2462,
+      "brier_skill": 0.0073,
+      "log_loss": 0.6859,
+      "ece": 0.0798
+    },
+    {
+      "model": "controls_plus_claims",
+      "n_train": 1155,
+      "n_test": 289,
+      "base_rate": 0.4736,
+      "auc": 0.6852,
+      "brier": 0.2264,
+      "brier_skill": 0.0874,
+      "log_loss": 0.6502,
+      "ece": 0.0644
+    }
+  ],
+  "top_features": [
+    {
+      "feature": "log_rv_pre",
+      "auc_drop": 0.09124334784712138,
+      "std": 0.01721949486207709
+    },
+    {
+      "feature": "days_since_prev",
+      "auc_drop": 0.018621190130624042,
+      "std": 0.00653573460062665
+    },
+    {
+      "feature": "log_rv_market_pre",
+      "auc_drop": 0.013202709240445032,
+      "std": 0.01069032316029992
+    },
+    {
+      "feature": "revenue_direction__not_stated",
+      "auc_drop": 0.010241896468311463,
+      "std": 0.006725419628063556
+    },
+    {
+      "feature": "timing__after_hours",
+      "auc_drop": 0.008214804063860626,
+      "std": 0.00921426291463661
+    },
+    {
+      "feature": "hedging_intensity",
+      "auc_drop": 0.006623125302370514,
+      "std": 0.003715419512354194
+    },
+    {
+      "feature": "log_price",
+      "auc_drop": 0.005873246250604669,
+      "std": 0.005173337017029435
+    },
+    {
+      "feature": "rv_ratio_to_market",
+      "auc_drop": 0.005350749879051675,
+      "std": 0.007385925921202992
+    },
+    {
+      "feature": "month",
+      "auc_drop": 0.0020657958393806796,
+      "std": 0.002927251120741613
+    },
+    {
+      "feature": "tone__confident",
+      "auc_drop": 0.0013884857281083129,
+      "std": 0.0012887521027630374
+    }
+  ]
+}

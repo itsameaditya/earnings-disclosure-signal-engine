@@ -1,0 +1,24 @@
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+.DS_Store
+
+# Secrets
+.env
+
+# Data: raw filings and caches are reproducible from EDGAR, not version-controlled.
+data/raw/
+data/interim/
+data/processed/
+!data/**/.gitkeep
+
+# Gold labels ARE version-controlled (hand-made, expensive) - see data/gold/
+!data/gold/
+!data/gold/**
+
+# Figures and result tables ARE committed: this repo is meant to be read on
+# GitHub, and a results README that renders no charts is half a README.

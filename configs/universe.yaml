@@ -1,0 +1,161 @@
+companies:
+- ticker: AAPL
+  cik: 320193
+  name: Apple Inc.
+  n_filings: 36
+- ticker: MSFT
+  cik: 789019
+  name: MICROSOFT CORP
+  n_filings: 35
+- ticker: NVDA
+  cik: 1045810
+  name: NVIDIA CORP
+  n_filings: 37
+- ticker: INTC
+  cik: 50863
+  name: INTEL CORP
+  n_filings: 36
+- ticker: CSCO
+  cik: 858877
+  name: CISCO SYSTEMS, INC.
+  n_filings: 35
+- ticker: ORCL
+  cik: 1341439
+  name: ORACLE CORP
+  n_filings: 35
+- ticker: ADBE
+  cik: 796343
+  name: ADOBE INC.
+  n_filings: 34
+- ticker: CRM
+  cik: 1108524
+  name: Salesforce, Inc.
+  n_filings: 36
+- ticker: TXN
+  cik: 97476
+  name: TEXAS INSTRUMENTS INC
+  n_filings: 36
+- ticker: QCOM
+  cik: 804328
+  name: QUALCOMM INC/DE
+  n_filings: 35
+- ticker: JPM
+  cik: 19617
+  name: JPMORGAN CHASE & CO
+  n_filings: 35
+- ticker: BAC
+  cik: 70858
+  name: BANK OF AMERICA CORP /DE/
+  n_filings: 36
+- ticker: GS
+  cik: 886982
+  name: GOLDMAN SACHS GROUP INC
+  n_filings: 38
+- ticker: WFC
+  cik: 72971
+  name: WELLS FARGO & COMPANY/MN
+  n_filings: 37
+- ticker: AXP
+  cik: 4962
+  name: AMERICAN EXPRESS CO
+  n_filings: 35
+- ticker: MS
+  cik: 895421
+  name: MORGAN STANLEY
+  n_filings: 34
+- ticker: JNJ
+  cik: 200406
+  name: JOHNSON & JOHNSON
+  n_filings: 38
+- ticker: PFE
+  cik: 78003
+  name: PFIZER INC
+  n_filings: 38
+- ticker: UNH
+  cik: 731766
+  name: UNITEDHEALTH GROUP INC
+  n_filings: 35
+- ticker: ABBV
+  cik: 1551152
+  name: AbbVie Inc.
+  n_filings: 55
+- ticker: MRK
+  cik: 310158
+  name: Merck & Co., Inc.
+  n_filings: 36
+- ticker: LLY
+  cik: 59478
+  name: ELI LILLY & Co
+  n_filings: 42
+- ticker: WMT
+  cik: 104169
+  name: Walmart Inc.
+  n_filings: 35
+- ticker: HD
+  cik: 354950
+  name: HOME DEPOT, INC.
+  n_filings: 35
+- ticker: MCD
+  cik: 63908
+  name: MCDONALDS CORP
+  n_filings: 37
+- ticker: NKE
+  cik: 320187
+  name: NIKE, Inc.
+  n_filings: 37
+- ticker: PG
+  cik: 80424
+  name: PROCTER & GAMBLE Co
+  n_filings: 35
+- ticker: KO
+  cik: 21344
+  name: COCA COLA CO
+  n_filings: 35
+- ticker: PEP
+  cik: 77476
+  name: PEPSICO INC
+  n_filings: 35
+- ticker: COST
+  cik: 909832
+  name: COSTCO WHOLESALE CORP /NEW
+  n_filings: 34
+- ticker: BA
+  cik: 12927
+  name: BOEING CO
+  n_filings: 37
+- ticker: CAT
+  cik: 18230
+  name: CATERPILLAR INC
+  n_filings: 37
+- ticker: GE
+  cik: 40545
+  name: GENERAL ELECTRIC CO
+  n_filings: 38
+- ticker: HON
+  cik: 773840
+  name: HONEYWELL INTERNATIONAL INC
+  n_filings: 43
+- ticker: UPS
+  cik: 1090727
+  name: UNITED PARCEL SERVICE INC
+  n_filings: 35
+- ticker: LMT
+  cik: 936468
+  name: LOCKHEED MARTIN CORP
+  n_filings: 36
+- ticker: CVX
+  cik: 93410
+  name: CHEVRON CORP
+  n_filings: 38
+- ticker: T
+  cik: 732717
+  name: AT&T INC.
+  n_filings: 38
+- ticker: VZ
+  cik: 732712
+  name: VERIZON COMMUNICATIONS INC
+  n_filings: 35
+- ticker: DIS
+  cik: 1744489
+  name: Walt Disney Co
+  n_filings: 30
