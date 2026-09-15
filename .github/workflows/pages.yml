@@ -1,0 +1,63 @@
+# Publishes the results site to GitHub Pages.
+#
+# The site is rendered from README.md and reports/REPORT.md, both of which are
+# committed. The pipeline itself does NOT run here: extraction needs a local
+# Ollama model and price data from a third-party API, so a CI run could not
+# reproduce the numbers and a CI run that *pretended* to would be worse than
+# none. Results reach the site the same way they reach the repo -- someone runs
+# the pipeline locally and commits the regenerated artifacts.
+name: pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - README.md
+      - reports/**
+      - site/**
+      - scripts/build_site.py
+      - .github/workflows/pages.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# A queued run should publish the newest commit, but never cancel a deploy
+# that is already mid-flight.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install the renderer
+        run: pip install "markdown==3.7"
+
+      - name: Build the site
+        run: python scripts/build_site.py
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

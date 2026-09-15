@@ -10,6 +10,9 @@ __pycache__/
 # Secrets
 .env
 
+# Rendered site; GitHub Pages builds it from README.md + reports/.
+build/
+
 # Data: raw filings and caches are reproducible from EDGAR, not version-controlled.
 data/raw/
 data/interim/

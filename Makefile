@@ -3,7 +3,8 @@ PY := ./.venv/bin/python
 EDSE := ./.venv/bin/edse
 
 .PHONY: help setup test lint data extract-baseline extract-local extract-llm \
-        train-baseline train-local train-llm eval label pipeline pipeline-claude clean-derived
+        train-baseline train-local train-llm eval label site pipeline pipeline-claude \
+        clean-derived
 
 help:
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
@@ -47,13 +48,18 @@ eval:  ## grade extractors against gold labels
 label:  ## review the gold-label template one filing at a time
 	$(PY) scripts/label_gold.py
 
+site:  ## render the GitHub Pages results site into build/site
+	$(PY) scripts/build_site.py
+
 # Default path is free: local model, no API key. `make pipeline-claude` is the
 # hosted-extractor equivalent and is the only target that needs a key.
 pipeline: data extract-baseline extract-local train-local train-baseline  ## everything end to end, free
 	$(EDSE) report
+	$(MAKE) site
 
 pipeline-claude: data extract-llm train-llm  ## same via the Claude extractor (needs ANTHROPIC_API_KEY)
 	$(EDSE) report
+	$(MAKE) site
 
 clean-derived:  ## drop derived artifacts, keep raw downloads and gold labels
-	rm -rf data/processed/* reports/figures/*.png reports/*.json reports/*.csv
+	rm -rf data/processed/* reports/figures/*.png reports/*.json reports/*.csv build/

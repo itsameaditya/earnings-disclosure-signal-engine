@@ -1,0 +1,198 @@
+/* Earnings Disclosure Signal Engine - results site.
+   Typographic, not decorative: this is a research report that happens to be a
+   web page, so the job is legible prose, readable tables and undistorted figures. */
+
+:root {
+  --bg: #fbfaf8;
+  --surface: #ffffff;
+  --text: #1c1b1a;
+  --muted: #5d5a55;
+  --rule: #e2ded7;
+  --accent: #8a5a2b;
+  --code-bg: #f4f1ec;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14130f;
+    --surface: #1b1a16;
+    --text: #ece8e1;
+    --muted: #a8a29a;
+    --rule: #33302a;
+    --accent: #d8a35f;
+    --code-bg: #211f1a;
+  }
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 17px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  font-feature-settings: "kern" 1;
+}
+
+/* ---------------------------------------------------------------- chrome */
+
+.masthead {
+  border-bottom: 1px solid var(--rule);
+  background: var(--surface);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.masthead nav {
+  max-width: 48rem;
+  margin: 0 auto;
+  padding: 0.85rem 1.5rem;
+  display: flex;
+  gap: 1.5rem;
+  font-size: 0.9rem;
+}
+
+.masthead a {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.masthead a:hover { color: var(--text); }
+
+.masthead a[aria-current="page"] {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.colophon {
+  max-width: 48rem;
+  margin: 4rem auto 3rem;
+  padding: 1.5rem 1.5rem 0;
+  border-top: 1px solid var(--rule);
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+/* ----------------------------------------------------------------- prose */
+
+.prose {
+  max-width: 48rem;
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem 0;
+}
+
+.prose > h1:first-child { margin-top: 0; }
+
+h1, h2, h3 {
+  line-height: 1.25;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+h1 { font-size: 2rem; margin: 2.5rem 0 1rem; }
+h2 { font-size: 1.4rem; margin: 2.75rem 0 0.75rem; }
+h3 { font-size: 1.1rem; margin: 2rem 0 0.5rem; }
+
+p, ul, ol { margin: 0 0 1.1rem; }
+
+a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+
+hr {
+  border: 0;
+  border-top: 1px solid var(--rule);
+  margin: 2.5rem 0;
+}
+
+strong { font-weight: 650; }
+
+/* The README leans on blockquotes for the status/caveat blocks, which carry the
+   honesty of the results. Make them read as a callout rather than a whisper. */
+blockquote {
+  margin: 1.5rem 0;
+  padding: 1rem 1.25rem;
+  border-left: 3px solid var(--accent);
+  background: var(--surface);
+  border-radius: 0 4px 4px 0;
+  font-size: 0.95rem;
+}
+
+blockquote > :last-child { margin-bottom: 0; }
+
+/* ------------------------------------------------------------ code + data */
+
+code {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  font-size: 0.875em;
+  background: var(--code-bg);
+  padding: 0.15em 0.35em;
+  border-radius: 3px;
+}
+
+pre {
+  background: var(--code-bg);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 1rem 1.15rem;
+  overflow-x: auto;
+  line-height: 1.45;
+}
+
+pre code {
+  background: none;
+  padding: 0;
+  font-size: 0.82rem;
+}
+
+/* Tables are results, so they get to be the most carefully set thing here:
+   right-aligned numerics, tabular figures so columns line up digit for digit. */
+.table-wrap { overflow-x: auto; margin: 1.5rem 0; }
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.9rem;
+}
+
+th, td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--rule);
+  text-align: left;
+}
+
+th {
+  font-weight: 650;
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1.5px solid var(--rule);
+  white-space: nowrap;
+}
+
+td[align="right"], th[align="right"] {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+tbody tr:last-child td { border-bottom: none; }
+
+/* --------------------------------------------------------------- figures */
+
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 1.5rem auto;
+  background: #fff;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+}
+
+@media (max-width: 640px) {
+  body { font-size: 16px; }
+  .prose { padding: 1.75rem 1.1rem 0; }
+  h1 { font-size: 1.6rem; }
+}
