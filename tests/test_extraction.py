@@ -259,5 +259,59 @@ class TestTextPrep:
         meta = out.meta()
         assert meta["original_chars"] == len("Acme. " * 500)
         assert set(meta) == {
-            "original_chars", "prepared_chars", "trimmed_at_marker", "hard_truncated",
+            "original_chars", "prepared_chars", "trimmed_at_marker",
+            "hard_truncated", "guidance_recovered",
         }
+
+    def test_guidance_after_the_marker_is_recovered(self):
+        """Some filers put a non-GAAP reconciliation before their outlook section.
+
+        Trimming at the first statement header removes the guidance with the
+        tables. Measured on the real corpus this destroyed the outlook in 91
+        filings, and `guidance_action` would have been wrong for all of them with
+        no error raised - so the block is carried back explicitly.
+        """
+        from edse.textprep import prepare
+
+        doc = (
+            "Acme reports second quarter results. " * 60
+            + "\nRECONCILIATION OF GAAP TO NON-GAAP MEASURES\n"
+            + "1.0 2.0 3.0 " * 400
+            + "\nFull Year 2019 Revenues:\n"
+            + "The Company now expects full-year organic revenue growth of 5 percent.\n"
+            + "\nCONDENSED CONSOLIDATED STATEMENTS OF OPERATIONS\n"
+            + "9 9 9 " * 400
+        )
+        out = prepare(doc)
+        assert out.trimmed_at_marker
+        assert out.guidance_recovered
+        assert "now expects full-year organic revenue growth of 5 percent" in out.text
+        assert "RECONCILIATION" not in out.text
+
+    def test_no_recovery_when_guidance_is_already_in_the_narrative(self):
+        """Avoid duplicating an outlook the narrative already states."""
+        from edse.textprep import prepare
+
+        doc = (
+            "Acme reports results. The Company reaffirms its full-year guidance. " * 40
+            + "\nCONSOLIDATED BALANCE SHEETS\n"
+            + "1 2 3 " * 400
+        )
+        out = prepare(doc)
+        assert out.trimmed_at_marker
+        assert not out.guidance_recovered
+
+    def test_recovery_is_bounded(self):
+        """A guidance match inside the tables must not drag the tables back."""
+        from edse.textprep import GUIDANCE_RECOVERY_CHARS, prepare
+
+        doc = (
+            "Acme reports results. " * 80
+            + "\nCONSOLIDATED STATEMENTS OF OPERATIONS\n"
+            + "1 2 3 " * 200
+            + "\nOutlook\n"
+            + "X" * 50000
+        )
+        out = prepare(doc)
+        assert out.guidance_recovered
+        assert out.chars < 2000 + GUIDANCE_RECOVERY_CHARS + 500
