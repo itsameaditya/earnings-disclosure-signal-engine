@@ -211,10 +211,17 @@ Extraction quality (needs hand labels):
 
 ```bash
 edse gold --sample 60                 # stratified labeling template
-# ... edit data/gold/gold_labels.jsonl, flip "_reviewed": true ...
-edse eval-extraction                  # grade claude vs. baseline
+python scripts/label_gold.py          # review it field by field (see below)
+edse eval-extraction                  # grade the extractors against it
 edse consistency --runs 3             # stability, no gold labels needed
 ```
+
+`scripts/label_gold.py` walks the template one filing at a time, showing the *same
+trimmed narrative the extractor is given* — so a gold label is never based on text
+the model could not see — with the rubric for each field pulled from `schema.py` and
+the prefill from the rule-based extractor. It never displays the LLM's own answer:
+the gold set is the independent measurement, and anchoring it to the system under
+evaluation would inflate every score. Progress saves after each document.
 
 Extraction is cached on disk, keyed by `(extractor, model, prompt_version,
 document_text)`. A re-run after a crash re-extracts only what's missing, and
