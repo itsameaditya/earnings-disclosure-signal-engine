@@ -1,0 +1,11 @@
+{
+  "baseline": {
+    "n_documents": 60,
+    "n_fields": 17,
+    "mean_field_accuracy": 0.5843137254901961,
+    "mean_macro_f1": 0.49015188376896046,
+    "document_exact_match": 0.0,
+    "worst_field": "hedging_intensity",
+    "worst_field_accuracy": 0.25
+  }
+}

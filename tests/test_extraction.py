@@ -465,3 +465,31 @@ class TestGuidanceHeadingRecovery:
         assert not out.guidance_recovered
         assert "RECONCILIATION" not in out.text
         assert out.chars < out.original_chars / 2
+
+
+class TestAvailableExtractions:
+    """`edse eval-extraction` must default to the extractors that exist.
+
+    Regression: the default was the literal string "claude,baseline", so `local`
+    -- the default extractor -- was skipped and the extraction-quality table
+    omitted the very run the gold set was labeled for. Third instance of the
+    same hard-coded-extractor-list bug in this codebase, after the report's two.
+    """
+
+    def test_discovers_and_orders_control_first(self, tmp_path, monkeypatch):
+        import edse.cli_eval as ce
+
+        for name in ("local", "claude", "baseline"):
+            (tmp_path / f"extractions_{name}.parquet").touch()
+        monkeypatch.setattr(ce, "PROCESSED_DIR", tmp_path)
+
+        assert ce._available_extractions() == ["baseline", "local", "claude"]
+
+    def test_ignores_unrelated_parquets(self, tmp_path, monkeypatch):
+        import edse.cli_eval as ce
+
+        (tmp_path / "extractions_baseline.parquet").touch()
+        (tmp_path / "events_labeled.parquet").touch()
+        monkeypatch.setattr(ce, "PROCESSED_DIR", tmp_path)
+
+        assert ce._available_extractions() == ["baseline"]

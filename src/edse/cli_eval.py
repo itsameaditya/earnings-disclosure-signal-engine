@@ -132,7 +132,16 @@ def cmd_eval_extraction(args, cfg: Config) -> None:
     rtol = cfg.eval["numeric_rtol"]
 
     tables, summaries = {}, {}
-    for extractor in args.extractors.split(","):
+    requested = (
+        [e.strip() for e in args.extractors.split(",") if e.strip()]
+        if args.extractors
+        else _available_extractions()
+    )
+    if not requested:
+        raise SystemExit(
+            "no extractions_*.parquet found in data/processed - run `edse extract` first"
+        )
+    for extractor in requested:
         path = PROCESSED_DIR / f"extractions_{extractor}.parquet"
         if not path.exists():
             log.warning("skipping %s: %s not found", extractor, path.name)
@@ -259,7 +268,16 @@ def register(sub) -> None:
     p.set_defaults(func=cmd_gold_init)
 
     p = sub.add_parser("eval-extraction", help="grade extractors against gold labels")
-    p.add_argument("--extractors", default="claude,baseline")
+    p.add_argument(
+        "--extractors",
+        default=None,
+        help=(
+            "comma-separated extractor names; defaults to every extractor with an "
+            "extractions_*.parquet on disk. This used to default to the literal "
+            '"claude,baseline", which silently skipped `local` -- the default '
+            "extractor -- so the quality table omitted the very run it was for."
+        ),
+    )
     p.set_defaults(func=cmd_eval_extraction)
 
     p = sub.add_parser("consistency", help="measure extraction stability across repeated runs")
@@ -283,6 +301,13 @@ def _read_json(path: Path) -> dict | None:
 #: it is the bar, then the local model, then Claude. Anything unrecognised sorts
 #: last rather than being dropped.
 _EXTRACTOR_ORDER = {"baseline": 0, "local": 1, "local-sample": 2, "claude": 3}
+
+
+def _available_extractions() -> list[str]:
+    """Extractor names that have an extractions parquet, control first."""
+    names = [p.name[len("extractions_") : -len(".parquet")]
+             for p in PROCESSED_DIR.glob("extractions_*.parquet")]
+    return sorted(names, key=lambda n: (_EXTRACTOR_ORDER.get(n, len(_EXTRACTOR_ORDER)), n))
 
 
 def _reported_extractors(prefix: str) -> list[str]:
