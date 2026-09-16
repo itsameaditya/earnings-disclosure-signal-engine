@@ -48,12 +48,27 @@ MIN_NARRATIVE_CHARS = 1500
 #: guidance section in 91 documents - 7.7% of trimmed filings - and
 #: `guidance_action` would have been wrong for every one of them with no error
 #: raised anywhere. Anything matching this is recovered from the removed text.
+#:
+#: The bare-heading alternative originally accepted a single optional year or
+#: "full-year" qualifier, which missed the most common heading in this corpus:
+#: **"Business Outlook"**. That cost another 72 documents - 6.1% of trimmed
+#: filings, concentrated in QCOM (28), MRK (17), LLY (12) and LMT (11), all of
+#: which place the outlook *after* their segment tables. Qualifiers have to
+#: *repeat* to catch real headings here - "2025 Financial Guidance",
+#: "Full-Year 2025 Financial Outlook", "Fiscal 2024 full year guidance" - and
+#: the separator must be optional, because HTML-to-text runs a year into the
+#: next word ("2022Outlook"). The qualifier list is
+#: deliberately closed rather than `.*`: a permissive prefix matches captions
+#: like "RECONCILIATION OF GAAP TO NON-GAAP OUTLOOK", which is a table and
+#: belongs in the removed portion, so recovering it would drag the tables back
+#: in and undo the trim.
 _GUIDANCE_RE = re.compile(
     r"(full[- ]year \d{4}\s+(?:revenues?|outlook|guidance|earnings)"
     r"|we (?:now )?expect[^.]{0,80}(?:full[- ]year|fiscal \d{4})"
     r"|(?:raising|lowering|reaffirm\w*|updating|reiterat\w*) (?:its |our )?"
     r"(?:full[- ]year |fiscal )?(?:guidance|outlook)"
-    r"|^\s*(?:\d{4} |fiscal \d{4} |full[- ]year )?(?:outlook|guidance)\s*$)",
+    r"|^[ \t]*(?:(?:business|financial|company|updated|revised|full[- ]year"
+    r"|fiscal|\d{4})[ \t]*){0,4}(?:outlook|guidance)[ \t]*:?[ \t]*$)",
     re.IGNORECASE | re.MULTILINE,
 )
 

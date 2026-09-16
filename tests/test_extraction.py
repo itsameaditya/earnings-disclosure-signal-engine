@@ -406,3 +406,62 @@ class TestReportedExtractors:
         monkeypatch.setattr(ce, "REPORTS_DIR", tmp_path)
 
         assert ce._reported_extractors("extraction_stats_") == ["local"]
+
+
+class TestGuidanceHeadingRecovery:
+    """Outlook sections placed after the tables must survive the trim.
+
+    Regression: recovery keyed on a bare `Outlook`/`Guidance` heading with at
+    most one qualifier, so the most common heading in this corpus -- "Business
+    Outlook" -- did not match. 72 filings (6.1% of trimmed ones), concentrated
+    in QCOM, MRK, LLY and LMT, silently lost their guidance section, and
+    `guidance_action` would have read `not_provided` for every one of them with
+    nothing raised anywhere.
+    """
+
+    def _release(self, heading: str) -> str:
+        narrative = "Acme reported quarterly revenue of $1.0 billion. " * 40
+        outlook = (
+            f"\n{heading}\n"
+            "Acme now expects full-year revenue of $4.2 billion to $4.4 billion, "
+            "raising the prior range, and adjusted EPS of $3.10 to $3.20 for the year.\n"
+        )
+        tables = "\nSegment Results\n" + "1 2 3 4 5 " * 800
+        return narrative + tables + outlook
+
+    @pytest.mark.parametrize(
+        "heading",
+        [
+            "Business Outlook",
+            "Financial Outlook",
+            "2025 Financial Guidance",
+            "Full-Year 2025 Financial Outlook",
+            "Fiscal 2024 full year guidance",
+            "2022Outlook",  # html-to-text runs the year into the next word
+            "Outlook:",
+        ],
+    )
+    def test_heading_variants_are_recovered(self, heading):
+        from edse.textprep import prepare
+
+        out = prepare(self._release(heading))
+        assert out.trimmed_at_marker
+        assert out.guidance_recovered, f"{heading!r} was not recovered"
+        assert "full-year revenue of $4.2 billion" in out.text
+
+    def test_reconciliation_caption_is_not_guidance(self):
+        """A table caption containing "OUTLOOK" must not drag the tables back in."""
+        from edse.textprep import prepare
+
+        narrative = "Acme reported quarterly revenue of $1.0 billion. " * 40
+        tables = (
+            "\nSegment Results\n"
+            + "1 2 3 4 5 " * 800
+            + "\nRECONCILIATION OF GAAP TO NON-GAAP OUTLOOK\n"
+            + "9 8 7 6 5 " * 800
+        )
+        out = prepare(narrative + tables)
+        assert out.trimmed_at_marker
+        assert not out.guidance_recovered
+        assert "RECONCILIATION" not in out.text
+        assert out.chars < out.original_chars / 2
