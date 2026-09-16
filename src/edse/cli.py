@@ -400,7 +400,11 @@ def cmd_train(args, cfg: Config) -> None:
     table = pd.DataFrame([r.row() for r in results])
     print("\n" + table.to_string(index=False))
 
-    claim_source = {"claude": "Claude", "local": "local-LLM"}.get(args.extractor, "rule-based")
+    claim_source = {
+        "claude": "Claude",
+        "local": "local-LLM",
+        "local-sample": "local-LLM (sample)",
+    }.get(args.extractor, "rule-based")
     plot_ablation(results, FIGURES_DIR / f"ablation_{args.extractor}.png", claim_source)
     combined = next((r for r in results if r.name == "controls_plus_claims"), results[-1])
     plot_reliability(

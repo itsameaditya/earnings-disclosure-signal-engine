@@ -364,3 +364,45 @@ class TestConsistencyUsesPreparedText:
 
         texts = prepared_texts(records, tmp_path, None)
         assert set(texts) == {"0000000000-00-000000"}
+
+
+class TestReportedExtractors:
+    """The report must find every extractor that has artifacts, not a fixed list.
+
+    Regression: the report looped over the literal tuple ("claude", "baseline"),
+    so `local` -- the default extractor -- was silently absent from both the
+    extraction and prediction sections. The symptom reads as "that stage never
+    ran", which is indistinguishable from the truth in a report whose whole
+    contract is to omit stages that did not run.
+    """
+
+    def test_discovers_local_and_orders_control_first(self, tmp_path, monkeypatch):
+        import edse.cli_eval as ce
+
+        for name in ("local", "baseline", "claude"):
+            (tmp_path / f"model_results_{name}.json").write_text("{}")
+        monkeypatch.setattr(ce, "REPORTS_DIR", tmp_path)
+
+        assert ce._reported_extractors("model_results_") == ["baseline", "local", "claude"]
+
+    def test_unknown_extractor_is_kept_not_dropped(self, tmp_path, monkeypatch):
+        import edse.cli_eval as ce
+
+        (tmp_path / "model_results_baseline.json").write_text("{}")
+        (tmp_path / "model_results_someone-elses-model.json").write_text("{}")
+        monkeypatch.setattr(ce, "REPORTS_DIR", tmp_path)
+
+        assert ce._reported_extractors("model_results_") == [
+            "baseline",
+            "someone-elses-model",
+        ]
+
+    def test_ignores_other_report_json(self, tmp_path, monkeypatch):
+        """`extraction_summary.json` must not be read as an extractor named 'summary'."""
+        import edse.cli_eval as ce
+
+        (tmp_path / "extraction_stats_local.json").write_text("{}")
+        (tmp_path / "extraction_summary.json").write_text("{}")
+        monkeypatch.setattr(ce, "REPORTS_DIR", tmp_path)
+
+        assert ce._reported_extractors("extraction_stats_") == ["local"]

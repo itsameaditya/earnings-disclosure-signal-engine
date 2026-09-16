@@ -279,6 +279,26 @@ def _read_json(path: Path) -> dict | None:
         return None
 
 
+#: Reading order for the results sections: the rule-based control first because
+#: it is the bar, then the local model, then Claude. Anything unrecognised sorts
+#: last rather than being dropped.
+_EXTRACTOR_ORDER = {"baseline": 0, "local": 1, "local-sample": 2, "claude": 3}
+
+
+def _reported_extractors(prefix: str) -> list[str]:
+    """Extractor names that actually have `prefix*.json` artifacts on disk.
+
+    Discovered rather than hard-coded. This used to be the literal tuple
+    ("claude", "baseline"), which silently omitted `local` -- the *default*
+    extractor -- from both the extraction and prediction sections, so a
+    completed local run produced a report that showed no local results at all.
+    A missing section is exactly the kind of failure that looks like "the stage
+    didn't run" instead of "the report forgot about it".
+    """
+    names = [p.name[len(prefix) : -len(".json")] for p in REPORTS_DIR.glob(f"{prefix}*.json")]
+    return sorted(names, key=lambda n: (_EXTRACTOR_ORDER.get(n, len(_EXTRACTOR_ORDER)), n))
+
+
 def cmd_report(args, cfg: Config) -> None:
     """Assemble reports/REPORT.md from whatever artifacts exist.
 
@@ -322,7 +342,7 @@ def cmd_report(args, cfg: Config) -> None:
             lines.append(f"| {name} | {count:,} | {count / len(events):.1%} |")
         lines.append("")
 
-    for extractor in ("claude", "baseline"):
+    for extractor in _reported_extractors("extraction_stats_"):
         stats = _read_json(REPORTS_DIR / f"extraction_stats_{extractor}.json")
         if not stats:
             continue
@@ -375,7 +395,7 @@ def cmd_report(args, cfg: Config) -> None:
             "",
         ]
 
-    for extractor in ("claude", "baseline"):
+    for extractor in _reported_extractors("model_results_"):
         results = _read_json(REPORTS_DIR / f"model_results_{extractor}.json")
         if not results:
             continue
