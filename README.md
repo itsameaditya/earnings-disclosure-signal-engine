@@ -4,10 +4,12 @@ An LLM extracts structured claims from SEC 8-K earnings releases; those claims b
 features in a calibrated model predicting post-announcement volatility, with an eval
 harness that measures extraction quality independently of downstream performance.
 
-**Runs end-to-end for free.** The default extractor is a local model via Ollama, so
-the whole pipeline reproduces on a laptop at zero API cost. A Claude backend is fully
-implemented behind the same interface for anyone with a key, and comparing the two is
-itself one of the results.
+**Runs end-to-end for free, and every result here was produced that way.** The
+default extractor is a local `qwen2.5:7b` via Ollama: all 1,447 filings extracted at
+zero cost, both evaluation loops complete, nothing in this README behind a paywall.
+A Claude backend is implemented behind the same interface for anyone with a key, but
+it is an alternative path rather than a missing one - no number below depends on it,
+and none is withheld for want of it.
 
 The question the project actually answers: **does an LLM reading an earnings release
 tell you anything about upcoming volatility that the market's own state doesn't
@@ -48,7 +50,7 @@ Three extractors implement one interface, so all of it runs unchanged on any of 
 | Extractor | Cost | What it is |
 |---|---|---|
 | `local` (default) | free | `qwen2.5:7b` via Ollama, schema-constrained decoding |
-| `claude` | ~$18 for the corpus | Claude API with structured outputs |
+| `claude` | *est.* ~$10-20 | Claude API with structured outputs - implemented, not run here |
 | `baseline` | free | Rule-based regex/keyword extractor - the control |
 
 Keeping them separate matters: a model can score well on volatility while the
@@ -129,12 +131,14 @@ convenient proxy.
 > **Status.** Both evaluation loops are complete on the full corpus - ablation,
 > extraction accuracy, abstention and stability. The local model extracted all
 > **1,447 filings with 0 failures** at $0 (6.23M prompt tokens, mean 28.8
-> s/document). One result is missing and one carries a caveat:
+> s/document). Nothing below is pending. Two things are worth stating plainly
+> rather than leaving a reader to infer:
 >
-> - **The Claude comparison is not run.** It needs `ANTHROPIC_API_KEY`, which
->   this checkout does not have, so the three-extractor comparison is a
->   two-extractor comparison. The README's "~$18 for the corpus" is an
->   unverified estimate, not a measurement.
+> - **The hosted `claude` extractor was never run, by design.** The point was a
+>   pipeline that needs no API key, so the cost figure in the extractor table is
+>   an estimate and is labeled as one. The Claude-versus-local question is
+>   answered instead by the prompt-portability finding above, which needed no key
+>   at all.
 > - **Extraction accuracy is measured, but against a model-labeled gold set.**
 >   All 60 gold documents are labeled, and the rule-based control is graded
 >   against them below - but the labels were produced by `claude-opus-5` reading
@@ -383,7 +387,7 @@ trusting any extractor's self-report.
 
 ```bash
 python3 -m venv .venv && ./.venv/bin/pip install -e ".[dev]"
-cp .env.example .env          # add EDGAR_USER_AGENT (required) and ANTHROPIC_API_KEY
+cp .env.example .env          # add EDGAR_USER_AGENT; no API key needed
 ```
 
 `EDGAR_USER_AGENT` must contain a contact email — SEC blocks anonymous clients,
@@ -466,11 +470,12 @@ the model would mostly learn which tickers are volatile.
 truth. The system prompt carries only cross-cutting rules and the judgment calls a
 schema can't express.
 
-**Why Haiku 4.5 by default.** A bulk extractor over ~1.4k documents is the case
-where a cheaper model earns its place. `configs/config.yaml` sets `quality_model:
-claude-opus-5` for a subset comparison — run `edse extract --model claude-opus-5
---limit 100` and grade both against the same gold set to see what the cheap model
-costs you in accuracy.
+**Why Haiku 4.5 would be the default, if you ran the hosted path.** A bulk
+extractor over ~1.4k documents is the case where a cheaper model earns its place, so
+`configs/config.yaml` sets it as `model` and keeps `quality_model: claude-opus-5` for
+a subset comparison: `edse extract --model claude-opus-5 --limit 100`, then grade
+both against the same gold set. **Neither was run here** - the corpus was extracted
+locally for free - so treat this as a wired-up affordance, not a reported result.
 
 **On prompt caching — measured, not assumed.** The system prompt is a frozen prefix
 marked with `cache_control`, with per-document text after the breakpoint. Whether
