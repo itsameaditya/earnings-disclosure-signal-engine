@@ -3,8 +3,8 @@ PY := ./.venv/bin/python
 EDSE := ./.venv/bin/edse
 
 .PHONY: help setup test lint data extract-baseline extract-local extract-llm \
-        train-baseline train-local train-llm eval label site pipeline pipeline-claude \
-        clean-derived
+        train-baseline train-local train-llm eval label site bench-concurrency \
+        pipeline pipeline-claude clean-derived
 
 help:
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
@@ -50,6 +50,11 @@ label:  ## review the gold-label template one filing at a time
 
 site:  ## render the GitHub Pages results site into build/site
 	$(PY) scripts/build_site.py
+
+# Two arms, one per server setting - see the script's docstring for why the
+# server restart is yours to do.
+bench-concurrency:  ## measure local-extractor throughput at this arm/worker count
+	$(PY) scripts/bench_local_concurrency.py --arm $(ARM) --workers $(WORKERS)
 
 # Default path is free: local model, no API key. `make pipeline-claude` is the
 # hosted-extractor equivalent and is the only target that needs a key.

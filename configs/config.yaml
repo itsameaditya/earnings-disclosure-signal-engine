@@ -21,6 +21,20 @@ extraction:
   # 32k covers every document in this corpus after narrative trimming
   # (max prepared length ~64k chars ~= 17k tokens), so nothing is silently cut.
   local_num_ctx: 32768
+  # Concurrent requests to the local server. Measured on a 16 GiB M4 (11.8 GiB
+  # of usable VRAM): 2 slots ran 1.27x the throughput of serial extraction.
+  #
+  # Two things bound this at 2. Ollama preserves `local_num_ctx` *per slot* by
+  # scaling total context (`-c 65536 -np 2`), so each added slot costs another
+  # ~1.9 GB of KV cache for qwen2.5:7b at 32k; 3 slots plus 4.7 GB of weights
+  # reaches ~10.3 GB against 11.8 GiB, at which point Ollama shrinks the
+  # physical batch again and prefill -- 20:1 of the token volume here -- gets
+  # slower, not faster.
+  #
+  # This only helps if the server was started with a matching
+  # OLLAMA_NUM_PARALLEL; against the default of 1 the requests genuinely do
+  # queue, and you pay the added latency for no throughput.
+  local_max_workers: 2
   # Safety net for filers whose layout has no recognizable statement header.
   # Trimming alone handles 82% of the corpus; this catches the rest.
   max_document_chars: 70000

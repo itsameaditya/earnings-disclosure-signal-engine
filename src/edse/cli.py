@@ -257,9 +257,20 @@ def cmd_extract(args, cfg: Config) -> None:
         return result
 
     if pending:
-        # Local inference is GPU-bound on one machine: concurrent requests queue
-        # inside Ollama and add no throughput, so keep it serial.
-        workers = cfg.extraction["max_workers"] if args.extractor == "claude" else 1
+        # Measured, not assumed. Two concurrent requests against a server started
+        # with OLLAMA_NUM_PARALLEL=2 gave 1.27x the throughput of a serial run
+        # (281.7 vs 221.2 prompt tokens/s on length-balanced 12-document arms),
+        # while per-request median latency rose 17.2s -> 25.0s. That is batching,
+        # not queuing. The gain is well under 2x because this workload is prefill-
+        # dominated (20:1 prompt:output tokens) and Ollama halves the physical
+        # batch to fit two slots. See `local_max_workers` in configs/config.yaml
+        # for why 2 and not more, and note it only helps if the *server* was
+        # started with a matching OLLAMA_NUM_PARALLEL.
+        workers = (
+            cfg.extraction["max_workers"]
+            if args.extractor == "claude"
+            else cfg.extraction.get("local_max_workers", 1)
+        )
         with ThreadPoolExecutor(max_workers=workers) as pool:
             futures = {pool.submit(run, t): t for t in pending}
             for i, future in enumerate(as_completed(futures), 1):

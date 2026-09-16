@@ -126,9 +126,12 @@ convenient proxy.
 > than as placeholders:
 >
 > - **The local-LLM ablation row.** Extraction over all 1,447 filings runs at a
->   measured ~13 s/document on one laptop GPU — serial by design, since concurrent
->   requests just queue inside Ollama. It is cached per document and resumable, so
->   it costs nothing but wall-clock. Partial results are deliberately not reported:
+>   measured ~13 s/document serial, and ~7 s/document with two concurrent
+>   requests. Treat that end-to-end gap as indicative rather than exact: the
+>   corpus is ordered by issuer, so the two figures come from different document
+>   mixes. The length-controlled comparison is 1.27x - see *On local
+>   concurrency* below. Extraction is cached per document and resumable, so it
+>   costs nothing but wall-clock. Partial results are deliberately not reported:
 >   the corpus is ordered by issuer, so any prefix is a handful of tech mega-caps
 >   rather than a sample, and an AUC computed on it would be a tech-sector number
 >   wearing a corpus-wide label.
@@ -203,7 +206,8 @@ without one.
 For the free local extractor:
 
 ```bash
-brew install ollama && ollama serve &
+brew install ollama
+OLLAMA_NUM_PARALLEL=2 ollama serve &     # see "On local concurrency" below
 ollama pull qwen2.5:7b
 ```
 
@@ -284,6 +288,40 @@ burn real tokens on every uncached call to manufacture a metric. Instead
 `reports/extraction_stats_*.json` reports measured `cache_hit_rate`, so the answer
 is observed.
 
+**On local concurrency — the claim this README got wrong.** This file used to
+state that concurrent requests "just queue inside Ollama and add no throughput",
+and `cli.py` hard-coded one worker for the local extractor on that basis. It was
+reasoned, not measured, and it was wrong. Two length-balanced 12-document arms
+(prompt-token volume within 0.8%), serial versus two concurrent requests against
+a server started with `OLLAMA_NUM_PARALLEL=2`:
+
+| | `NUM_PARALLEL=1` | `NUM_PARALLEL=2` |
+|---|---:|---:|
+| wall clock, 12 documents | 238.8 s | 189.1 s |
+| prompt tokens/s | 221.2 | 281.7 |
+| output tokens/s | 11.1 | 14.2 |
+| median request latency | 17.2 s | 25.0 s |
+
+**1.27x the throughput**, agreeing across wall clock, prompt tokens and output
+tokens — while per-request latency rose 1.45x. Latency up *and* throughput up is
+batching; pure queuing would have raised latency and left throughput flat. So
+the shape of the original claim was right (each request does get slower) and its
+conclusion was wrong.
+
+Two reasons the gain is well under 2x, both worth knowing before turning the dial
+up. This workload is prefill-dominated — 20:1 prompt to output tokens — and
+prefill already saturates the GPU, so there is little idle compute for a second
+request to use. And Ollama preserves the per-slot `local_num_ctx` by scaling
+total context (`-c 65536 -np 2`), which cost enough memory that it halved the
+physical batch (`-ub 1024` to `-ub 512`) and made prefill itself less efficient.
+On this 16 GiB machine (11.8 GiB usable) a third slot would reach ~10.3 GB with
+weights and shrink the batch again, so `local_max_workers` is 2.
+
+The part that generalizes: **the speedup only exists if the server was started
+with a matching `OLLAMA_NUM_PARALLEL`.** Against the default of 1 the requests
+really do queue, and a client sending two at once pays the extra latency for no
+throughput at all — the original claim, correctly describing a misconfiguration.
+
 **On gold-label anchoring.** `edse gold` pre-fills rows from the *rule-based*
 extractor, never the LLM. Pre-filling from the system under evaluation would anchor
 the labeler toward its answers and inflate every downstream score. `--prefill none`
@@ -310,6 +348,8 @@ src/edse/
   eval/plots.py        report figures
   cli.py, cli_eval.py  command-line pipeline
 scripts/label_gold.py  interactive gold-label review
+scripts/bench_local_concurrency.py   the local-concurrency measurement
+scripts/build_site.py  renders the published GitHub Pages site
 tests/                 63 tests; test_leakage.py covers the split/timing logic
 ```
 
