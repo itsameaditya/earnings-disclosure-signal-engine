@@ -126,12 +126,11 @@ convenient proxy.
 > than as placeholders:
 >
 > - **The local-LLM ablation row.** Extraction over all 1,447 filings runs at a
->   measured ~13 s/document serial, and ~7 s/document with two concurrent
->   requests. Treat that end-to-end gap as indicative rather than exact: the
->   corpus is ordered by issuer, so the two figures come from different document
->   mixes. The length-controlled comparison is 1.27x - see *On local
->   concurrency* below. Extraction is cached per document and resumable, so it
->   costs nothing but wall-clock. Partial results are deliberately not reported:
+>   measured ~13 s/document serial and ~9.6 s/document with two concurrent
+>   requests: a 1.28x end-to-end gain over a 1,000-document run, which lands on
+>   the 1.27x from the length-controlled comparison in *On local concurrency*
+>   below. Extraction is cached per document and resumable, so it costs nothing
+>   but wall-clock. Partial results are deliberately not reported:
 >   the corpus is ordered by issuer, so any prefix is a handful of tech mega-caps
 >   rather than a sample, and an AUC computed on it would be a tech-sector number
 >   wearing a corpus-wide label.
@@ -316,6 +315,11 @@ total context (`-c 65536 -np 2`), which cost enough memory that it halved the
 physical batch (`-ub 1024` to `-ub 512`) and made prefill itself less efficient.
 On this 16 GiB machine (11.8 GiB usable) a third slot would reach ~10.3 GB with
 weights and shrink the batch again, so `local_max_workers` is 2.
+
+The controlled figure held up at scale: the production run over ~1,000 documents
+came in at 9.56 s/document against 12.2 serial, a 1.28x gain. An earlier reading
+of 1.69x was measured over 25 documents and was a short-window artifact - the
+corpus is ordered by issuer, so a brief stretch can be all short filings.
 
 The part that generalizes: **the speedup only exists if the server was started
 with a matching `OLLAMA_NUM_PARALLEL`.** Against the default of 1 the requests
