@@ -7,5 +7,14 @@
     "document_exact_match": 0.0,
     "worst_field": "hedging_intensity",
     "worst_field_accuracy": 0.25
+  },
+  "local": {
+    "n_documents": 60,
+    "n_fields": 17,
+    "mean_field_accuracy": 0.711764705882353,
+    "mean_macro_f1": 0.6294140462403898,
+    "document_exact_match": 0.0,
+    "worst_field": "hedging_intensity",
+    "worst_field_accuracy": 0.26666666666666666
   }
 }

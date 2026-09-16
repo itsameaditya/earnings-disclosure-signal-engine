@@ -1,0 +1,92 @@
+{
+  "extractor": "local",
+  "estimator": "gbm",
+  "n_events": 1445,
+  "results": [
+    {
+      "model": "controls_only",
+      "n_train": 1155,
+      "n_test": 289,
+      "base_rate": 0.4736,
+      "auc": 0.6864,
+      "brier": 0.2253,
+      "brier_skill": 0.0916,
+      "log_loss": 0.6424,
+      "ece": 0.061
+    },
+    {
+      "model": "claims_only",
+      "n_train": 1155,
+      "n_test": 289,
+      "base_rate": 0.4736,
+      "auc": 0.5137,
+      "brier": 0.2559,
+      "brier_skill": -0.0316,
+      "log_loss": 0.7059,
+      "ece": 0.0788
+    },
+    {
+      "model": "controls_plus_claims",
+      "n_train": 1155,
+      "n_test": 289,
+      "base_rate": 0.4736,
+      "auc": 0.697,
+      "brier": 0.2219,
+      "brier_skill": 0.1052,
+      "log_loss": 0.6371,
+      "ece": 0.0552
+    }
+  ],
+  "top_features": [
+    {
+      "feature": "log_rv_pre",
+      "auc_drop": 0.08747460087082734,
+      "std": 0.016051378407124187
+    },
+    {
+      "feature": "log_rv_market_pre",
+      "auc_drop": 0.030038703434929915,
+      "std": 0.010983899351481991
+    },
+    {
+      "feature": "days_since_prev",
+      "auc_drop": 0.017426221577165002,
+      "std": 0.005595993393809584
+    },
+    {
+      "feature": "timing__after_hours",
+      "auc_drop": 0.01238509917755204,
+      "std": 0.009794770046327715
+    },
+    {
+      "feature": "dividend_action__increased",
+      "auc_drop": 0.007726173197871311,
+      "std": 0.006867135269311748
+    },
+    {
+      "feature": "log_dollar_volume",
+      "auc_drop": 0.007014997581035365,
+      "std": 0.0032448768035492643
+    },
+    {
+      "feature": "rv_ratio_to_market",
+      "auc_drop": 0.0044992743105950915,
+      "std": 0.008581619424401055
+    },
+    {
+      "feature": "guidance_horizon_quarters",
+      "auc_drop": 0.002999516207063402,
+      "std": 0.002786916075842459
+    },
+    {
+      "feature": "guidance_horizon_quarters_missing",
+      "auc_drop": 0.002578616352201335,
+      "std": 0.0010779032569733654
+    },
+    {
+      "feature": "revenue_yoy_abs",
+      "auc_drop": 0.0022206095791001633,
+      "std": 0.0026257480013191035
+    }
+  ]
+}

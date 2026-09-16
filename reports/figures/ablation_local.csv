@@ -1,0 +1,4 @@
+model,n_train,n_test,base_rate,auc,brier,brier_skill,log_loss,ece
+controls_only,1155,289,0.4736,0.6864,0.2253,0.0916,0.6424,0.061
+claims_only,1155,289,0.4736,0.5137,0.2559,-0.0316,0.7059,0.0788
+controls_plus_claims,1155,289,0.4736,0.697,0.2219,0.1052,0.6371,0.0552

@@ -26,6 +26,22 @@ Release timing (this is why event-day alignment matters):
 - Mean latency: 0.00s
 - Measured cache hit rate: **0.0%** (0 of 0 input tokens)
 
+## Extraction - local
+
+- Documents extracted: **1,447** (0 failed)
+- Total cost: **$0.00** ($0.00000/doc)
+- Mean latency: 28.81s
+- Measured cache hit rate: **0.0%** (0 of 6,231,568 input tokens)
+
+## Extraction quality vs. hand-labeled gold
+
+| extractor | docs | mean field accuracy | mean macro-F1 | document exact match |
+|---|---:|---:|---:|---:|
+| baseline | 60 | 0.584 | 0.490 | 0.000 |
+| local | 60 | 0.712 | 0.629 | 0.000 |
+
+![extraction quality](figures/extraction_quality.png)
+
 ## Prediction - baseline claims
 
 1,445 events, gbm + isotonic calibration.
@@ -56,3 +72,34 @@ Top features by permutation importance (AUC drop on the holdout):
 | `rv_ratio_to_market` | +0.0054 |
 | `month` | +0.0021 |
 | `tone__confident` | +0.0014 |
+
+## Prediction - local claims
+
+1,445 events, gbm + isotonic calibration.
+
+| feature set | AUC | Brier | Brier skill | ECE |
+|---|---:|---:|---:|---:|
+| controls only | 0.6864 | 0.2253 | +0.0916 | 0.0610 |
+| claims only | 0.5137 | 0.2559 | -0.0316 | 0.0788 |
+| controls plus claims | 0.6970 | 0.2219 | +0.1052 | 0.0552 |
+
+**Incremental value of the claim block: +0.0106 AUC, +0.0136 Brier skill - the claim block adds signal over market-state controls alone.**
+
+![ablation](figures/ablation_local.png)
+
+![reliability](figures/reliability_local.png)
+
+Top features by permutation importance (AUC drop on the holdout):
+
+| feature | AUC drop |
+|---|---:|
+| `log_rv_pre` | +0.0875 |
+| `log_rv_market_pre` | +0.0300 |
+| `days_since_prev` | +0.0174 |
+| `timing__after_hours` | +0.0124 |
+| `dividend_action__increased` | +0.0077 |
+| `log_dollar_volume` | +0.0070 |
+| `rv_ratio_to_market` | +0.0045 |
+| `guidance_horizon_quarters` | +0.0030 |
+| `guidance_horizon_quarters_missing` | +0.0026 |
+| `revenue_yoy_abs` | +0.0022 |
