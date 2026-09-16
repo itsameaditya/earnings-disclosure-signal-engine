@@ -169,6 +169,32 @@ def cmd_eval_extraction(args, cfg: Config) -> None:
     print(f"\nfigures -> {FIGURES_DIR}")
 
 
+def prepared_texts(
+    records: list[dict], documents_dir: Path, max_chars: int | None
+) -> dict[str, str]:
+    """Document text prepared the way `edse extract` prepares it, keyed by accession.
+
+    Consistency has to send the extractor the *same* text the real extraction
+    stage sends, or it measures a pipeline that does not exist. `edse extract`
+    trims financial-statement tables first; the untrimmed documents are also the
+    ones long enough for the server's context shift to drop text silently, so
+    measuring stability on raw text would report fields as unstable partly
+    because different runs were answering about text the model never saw.
+
+    Missing documents are skipped rather than raising: the corpus and the
+    document directory are allowed to disagree, and the caller reports on what
+    it actually has.
+    """
+    from .textprep import prepare
+
+    texts = {}
+    for rec in records:
+        doc = documents_dir / f"{rec['accession']}.txt"
+        if doc.exists():
+            texts[rec["accession"]] = prepare(doc.read_text(), max_chars=max_chars).text
+    return texts
+
+
 def cmd_consistency(args, cfg: Config) -> None:
     """Repeat extraction at temperature>0 and measure agreement across runs.
 
@@ -191,17 +217,23 @@ def cmd_consistency(args, cfg: Config) -> None:
     n_runs = args.runs or cfg.eval["consistency_runs"]
     temperature = cfg.eval["consistency_temperature"]
 
+    prepared = prepared_texts(
+        filings.to_dict("records"),
+        DOCUMENTS_DIR,
+        cfg.extraction.get("max_document_chars"),
+    )
+
     runs = []
     for run_index in range(n_runs):
         extractor = _build_extractor(cfg, args.extractor, args.model, temperature)
         rows = []
         print(f"run {run_index + 1}/{n_runs} ...", flush=True)
         for rec in filings.to_dict("records"):
-            doc = DOCUMENTS_DIR / f"{rec['accession']}.txt"
-            if not doc.exists():
+            text = prepared.get(rec["accession"])
+            if text is None:
                 continue
             result = extractor.extract(
-                doc.read_text(), ticker=rec["ticker"], accession=rec["accession"],
+                text, ticker=rec["ticker"], accession=rec["accession"],
                 filing_date=rec.get("filing_date", ""),
             )
             if result.ok and result.claims:

@@ -315,3 +315,52 @@ class TestTextPrep:
         out = prepare(doc)
         assert out.guidance_recovered
         assert out.chars < 2000 + GUIDANCE_RECOVERY_CHARS + 500
+
+
+class TestConsistencyUsesPreparedText:
+    """Consistency must extract the same text `edse extract` extracts.
+
+    Regression: `edse consistency` read documents straight off disk while
+    `edse extract` trimmed statement tables first. The stability numbers would
+    then describe a pipeline nobody runs - and because the untrimmed documents
+    are the long ones, the server's context shift would drop text silently, so
+    a field could look unstable purely because separate runs were answering
+    about different halves of the filing.
+    """
+
+    def _corpus(self, tmp_path):
+        narrative = "Acme reports record revenue, up 12% year over year. " * 60
+        tables = "1 2 3 4 5 " * 5000
+        doc = narrative + "\nCONDENSED CONSOLIDATED STATEMENTS OF OPERATIONS\n" + tables
+        (tmp_path / "0000000000-00-000000.txt").write_text(doc)
+        return [{"accession": "0000000000-00-000000", "ticker": "ACME"}], doc
+
+    def test_text_is_trimmed_before_extraction(self, tmp_path):
+        from edse.cli_eval import prepared_texts
+
+        records, raw = self._corpus(tmp_path)
+        texts = prepared_texts(records, tmp_path, None)
+
+        sent = texts["0000000000-00-000000"]
+        assert "Acme reports record revenue" in sent
+        assert "CONDENSED CONSOLIDATED" not in sent
+        assert len(sent) < len(raw) / 2
+
+    def test_matches_what_extract_would_send(self, tmp_path):
+        """The helper must agree with `textprep.prepare` exactly, not approximately."""
+        from edse.cli_eval import prepared_texts
+        from edse.textprep import prepare
+
+        records, raw = self._corpus(tmp_path)
+        texts = prepared_texts(records, tmp_path, 70000)
+
+        assert texts["0000000000-00-000000"] == prepare(raw, max_chars=70000).text
+
+    def test_missing_document_is_skipped_not_fatal(self, tmp_path):
+        from edse.cli_eval import prepared_texts
+
+        records, _ = self._corpus(tmp_path)
+        records.append({"accession": "9999999999-99-999999", "ticker": "GONE"})
+
+        texts = prepared_texts(records, tmp_path, None)
+        assert set(texts) == {"0000000000-00-000000"}
