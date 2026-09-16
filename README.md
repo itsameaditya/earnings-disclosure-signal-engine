@@ -14,6 +14,11 @@ tell you anything about upcoming volatility that the market's own state doesn't
 already?** That framing forces two things most "LLM + finance" projects skip — a
 measured extraction step, and an ablation that can come back negative.
 
+**It came back negative.** Incremental AUC +0.0106, 95% CI [-0.0212, +0.0427].
+The extraction works; the signal is not there at this sample size. What did hold
+up is methodological: self-consistency predicts per-field accuracy at r = 0.715
+(p = 0.0013), so extraction quality can be screened without labels.
+
 ---
 
 ## Pipeline
@@ -179,8 +184,9 @@ strongest single feature (+0.091 AUC drop under permutation).
 
 That is the bar, and it is the result that makes the ablation worth running: an
 extractor can produce 1,447 clean, schema-valid records and still contribute zero
-signal. The local model clears it, barely - **+0.0106 AUC against -0.0012** - and
-the section below is careful about how little that margin establishes.
+signal. The local model does not clear it either - **+0.0106 AUC with a 95% confidence
+interval of [-0.0212, +0.0427]**. The section below reports that null result
+rather than the point estimate.
 
 ![ablation](reports/figures/ablation_baseline.png)
 
@@ -200,32 +206,40 @@ Full corpus, 1,445 events, gbm + isotonic calibration, purged time splits.
 | claims only | 0.5137 | 0.2559 | -0.0316 | 0.0788 |
 | controls + claims | **0.6970** | **0.2219** | **+0.1052** | **0.0552** |
 
-**Incremental value of LLM claims over market state alone: +0.0106 AUC, +0.0136
-Brier skill, and ECE improves 0.0610 to 0.0552.** The same ablation with
-keyword-extracted claims gives **-0.0012 AUC**. So the answer to the question
-this repo was built to ask is: yes, marginally - and only in combination.
+The point estimate is +0.0106 AUC and +0.0137 Brier skill, against **-0.0012** for
+keyword-extracted claims. A paired bootstrap over the 289 held-out events - 10,000
+resamples, both models rescored on each draw - puts an interval on it:
 
-Three things keep that from being a strong claim, and they matter more than the
-sign of the number:
+| quantity | estimate | 95% CI | P(> 0) |
+|---|---:|---:|---:|
+| incremental AUC | +0.0106 | **[-0.0212, +0.0427]** | 0.742 |
+| incremental Brier skill | +0.0137 | **[-0.0186, +0.0451]** | 0.799 |
 
-1. **+0.0106 AUC is inside the noise on one test split.** 289 test events at a
-   47% base rate put the standard error on AUC near 0.03, and the permutation
-   importances below carry standard deviations of 0.003-0.016. This result is
-   directionally positive and **not statistically established**. A bootstrap over
-   splits, which this repo does not yet do, is what would settle it.
+**The interval straddles zero, so the answer is no.** A 7B model reading an
+earnings release does not measurably tell you anything about upcoming volatility
+that the market's own state does not already. The point estimate leans positive,
+and there is roughly a 74% chance the true effect has the right sign, but that is
+not a finding - it is a coin weighted slightly better than a coin.
+
+Three things make the null reading the right one:
+
+1. **The interval is three times the effect.** 289 test events cannot resolve a
+   one-point AUC difference. That is a power problem, not a modeling problem, and
+   no amount of tuning fixes it - the honest options are a larger corpus or a
+   bigger expected effect.
 2. **Claims alone are barely better than a coin flip** - 0.5137 AUC, and a
    *negative* Brier skill of -0.0316, meaning the claims-only model is worse
-   calibrated than predicting the base rate. Whatever the claims contribute, they
-   contribute it only alongside market state.
-3. **Market state still dominates.** `log_rv_pre` alone drops AUC by 0.0875 under
-   permutation. The best claim feature, `dividend_action__increased`, drops it by
-   0.0077 - an order of magnitude less - and only three claim features appear in
-   the top ten at all.
+   calibrated than just predicting the base rate.
+3. **Market state dominates.** `log_rv_pre` alone drops AUC by 0.0875 under
+   permutation; the best claim feature, `dividend_action__increased`, drops it by
+   0.0077 - an order of magnitude less.
 
-The honest summary is that a 7B model reading an earnings release adds about a
-percentage point of AUC over the market's own state, where a keyword extractor
-adds nothing, on a sample too small to call it significant. That is a more useful
-result than either "LLMs work" or "LLMs don't."
+This is the result the repo was built to be able to report. The extraction is good
+(below: 0.712 field accuracy, and 0.800 on stated revenue percentages where the
+regex manages 0.283), the pipeline is leakage-controlled, the claims are
+schema-valid on all 1,447 filings - **and the signal still is not there.** Without
+a confidence interval the +0.0106 would have been reportable as a win. The
+interval is the difference between a finding and a number.
 
 ![ablation](reports/figures/ablation_local.png)
 

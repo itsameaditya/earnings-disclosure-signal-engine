@@ -231,6 +231,80 @@ def fit_and_score(
     )
 
 
+def paired_bootstrap_delta(
+    baseline: FitResult,
+    candidate: FitResult,
+    n_boot: int = 10000,
+    random_state: int = 42,
+) -> dict:
+    """Bootstrap the AUC and Brier-skill gap between two models on one holdout.
+
+    The headline ablation number is a difference of two AUCs computed on the same
+    289 held-out events. A point estimate alone cannot say whether that gap is
+    real, and with a gap near +0.01 against a standard error near 0.03 the
+    question is not rhetorical.
+
+    The resampling is **paired**: it draws held-out *events* with replacement and
+    rescores both models on the same draw. Both models saw the same events, so
+    the between-model difference is what varies; bootstrapping them independently
+    would add variance that is not in the comparison and widen the interval for no
+    reason.
+
+    What this does and does not cover: it quantifies sampling noise in the holdout.
+    It does not cover variance from the choice of split point, the estimator seed,
+    or the calibration folds, all of which are held fixed here. So it is a lower
+    bound on the true uncertainty, and `p` is a bootstrap proportion rather than a
+    test statistic.
+    """
+    y = np.asarray(baseline.y_true)
+    if not np.array_equal(y, np.asarray(candidate.y_true)):
+        raise ValueError(
+            "paired bootstrap requires both models scored on identical held-out "
+            "events, in the same order"
+        )
+
+    pb, pc = np.asarray(baseline.probs), np.asarray(candidate.probs)
+    rng = np.random.default_rng(random_state)
+    n = len(y)
+    base_rate = baseline.base_rate
+
+    def brier_skill(y_t, probs):
+        ref = brier_score_loss(y_t, np.full_like(probs, base_rate))
+        return 1.0 - brier_score_loss(y_t, probs) / ref if ref > 0 else float("nan")
+
+    d_auc, d_skill = [], []
+    for _ in range(n_boot):
+        idx = rng.integers(0, n, n)
+        ys = y[idx]
+        # A resample can land all one class; AUC is undefined there, so skip it
+        # rather than silently contributing a nan to the quantiles.
+        if len(np.unique(ys)) < 2:
+            continue
+        d_auc.append(roc_auc_score(ys, pc[idx]) - roc_auc_score(ys, pb[idx]))
+        d_skill.append(brier_skill(ys, pc[idx]) - brier_skill(ys, pb[idx]))
+
+    d_auc, d_skill = np.array(d_auc), np.array(d_skill)
+    return {
+        "comparison": f"{candidate.name} - {baseline.name}",
+        "n_test": int(n),
+        "n_boot": len(d_auc),
+        "delta_auc": round(float(candidate.auc - baseline.auc), 4),
+        "delta_auc_ci95": [
+            round(float(np.percentile(d_auc, 2.5)), 4),
+            round(float(np.percentile(d_auc, 97.5)), 4),
+        ],
+        "delta_auc_p_gt_0": round(float((d_auc > 0).mean()), 4),
+        "delta_brier_skill": round(
+            float(candidate.brier_skill - baseline.brier_skill), 4
+        ),
+        "delta_brier_skill_ci95": [
+            round(float(np.percentile(d_skill, 2.5)), 4),
+            round(float(np.percentile(d_skill, 97.5)), 4),
+        ],
+        "delta_brier_skill_p_gt_0": round(float((d_skill > 0).mean()), 4),
+    }
+
+
 def run_ablation(
     X: pd.DataFrame,
     y: np.ndarray,

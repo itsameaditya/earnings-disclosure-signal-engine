@@ -37,6 +37,23 @@
       "ece": 0.0552
     }
   ],
+  "incremental_value": {
+    "comparison": "controls_plus_claims - controls_only",
+    "n_test": 289,
+    "n_boot": 10000,
+    "delta_auc": 0.0106,
+    "delta_auc_ci95": [
+      -0.0212,
+      0.0427
+    ],
+    "delta_auc_p_gt_0": 0.7421,
+    "delta_brier_skill": 0.0137,
+    "delta_brier_skill_ci95": [
+      -0.0186,
+      0.0451
+    ],
+    "delta_brier_skill_p_gt_0": 0.799
+  },
   "top_features": [
     {
       "feature": "log_rv_pre",

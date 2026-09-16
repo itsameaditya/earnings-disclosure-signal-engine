@@ -493,3 +493,59 @@ class TestAvailableExtractions:
         monkeypatch.setattr(ce, "PROCESSED_DIR", tmp_path)
 
         assert ce._available_extractions() == ["baseline"]
+
+
+class TestPairedBootstrap:
+    """The headline ablation number needs an interval, not just a sign."""
+
+    def _pair(self, n=400, seed=0):
+        import numpy as np
+
+        from edse.model import FitResult
+
+        rng = np.random.default_rng(seed)
+        y = rng.integers(0, 2, n)
+        # `weak` is near-random; `strong` genuinely separates the classes.
+        weak = rng.uniform(0, 1, n)
+        strong = np.clip(y * 0.45 + rng.uniform(0, 0.55, n), 0, 1)
+
+        def mk(name, probs):
+            return FitResult(
+                name=name, n_train=n, n_test=n, base_rate=float(y.mean()),
+                auc=0.0, brier=0.0, brier_skill=0.0, logloss=0.0, ece=0.0,
+                y_true=y, probs=probs,
+            )
+
+        return mk("controls_only", weak), mk("controls_plus_claims", strong)
+
+    def test_detects_a_real_improvement(self):
+        from edse.model import paired_bootstrap_delta
+
+        weak, strong = self._pair()
+        out = paired_bootstrap_delta(weak, strong, n_boot=400)
+        lo, _hi = out["delta_auc_ci95"]
+        assert lo > 0, "a genuine separation should give a CI strictly above zero"
+        assert out["delta_auc_p_gt_0"] > 0.95
+
+    def test_does_not_invent_an_effect_between_identical_models(self):
+        """Same predictions twice must give a zero delta and a CI containing zero."""
+        from edse.model import paired_bootstrap_delta
+
+        weak, _ = self._pair()
+        twin = type(weak)(**{**weak.__dict__, "name": "controls_plus_claims"})
+        out = paired_bootstrap_delta(weak, twin, n_boot=400)
+        lo, hi = out["delta_auc_ci95"]
+        assert lo == 0.0 and hi == 0.0, f"identical models gave a nonzero CI: {lo},{hi}"
+
+    def test_rejects_unpaired_inputs(self):
+        """Pairing is the point; mismatched holdouts must fail loudly."""
+        import numpy as np
+        import pytest as _pytest
+
+        from edse.model import paired_bootstrap_delta
+
+        weak, strong = self._pair()
+        strong.y_true = np.append(strong.y_true, 1)
+        strong.probs = np.append(strong.probs, 0.5)
+        with _pytest.raises(ValueError, match="identical held-out"):
+            paired_bootstrap_delta(weak, strong, n_boot=50)

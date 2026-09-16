@@ -421,11 +421,32 @@ def cmd_train(args, cfg: Config) -> None:
     )
     importance.to_csv(REPORTS_DIR / f"feature_importance_{args.extractor}.csv", index=False)
 
+    # The headline number is combined-minus-controls. Report an interval for it,
+    # not just a point estimate: the gap is small enough that its sign is the
+    # whole question.
+    bootstrap = None
+    by_name = {r.name: r for r in results}
+    if "controls_only" in by_name and "controls_plus_claims" in by_name:
+        from .model import paired_bootstrap_delta
+
+        bootstrap = paired_bootstrap_delta(
+            by_name["controls_only"],
+            by_name["controls_plus_claims"],
+            random_state=cfg.model["random_state"],
+        )
+        lo, hi = bootstrap["delta_auc_ci95"]
+        print(
+            f"\nincremental AUC {bootstrap['delta_auc']:+.4f} "
+            f"[95% CI {lo:+.4f}, {hi:+.4f}], "
+            f"P(delta > 0) = {bootstrap['delta_auc_p_gt_0']:.3f}"
+        )
+
     payload = {
         "extractor": args.extractor,
         "estimator": args.estimator,
         "n_events": len(joined),
         "results": table.to_dict("records"),
+        "incremental_value": bootstrap,
         "top_features": importance.head(10).to_dict("records"),
     }
     (REPORTS_DIR / f"model_results_{args.extractor}.json").write_text(json.dumps(payload, indent=2))
