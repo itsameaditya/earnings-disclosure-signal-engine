@@ -1,0 +1,6 @@
+{
+  "n_documents": 40,
+  "n_runs": 3,
+  "mean_agreement": 0.909313725490196,
+  "least_stable_field": "hedging_intensity"
+}

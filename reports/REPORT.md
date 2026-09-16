@@ -42,6 +42,12 @@ Release timing (this is why event-day alignment matters):
 
 ![extraction quality](figures/extraction_quality.png)
 
+## Extraction stability
+
+Across 3 runs at temperature 1.0 on 40 docs: mean modal agreement **0.909**, least stable field `hedging_intensity`.
+
+![consistency](figures/consistency.png)
+
 ## Prediction - baseline claims
 
 1,445 events, gbm + isotonic calibration.

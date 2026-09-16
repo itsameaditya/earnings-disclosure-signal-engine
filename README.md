@@ -121,9 +121,10 @@ convenient proxy.
 
 ## Results
 
-> **Status.** Both loops are measured on the full corpus. The local model
-> extracted all **1,447 filings with 0 failures** at $0 (6.23M prompt tokens,
-> mean 28.8 s/document). One result is still missing and one carries a caveat:
+> **Status.** Both evaluation loops are complete on the full corpus - ablation,
+> extraction accuracy, abstention and stability. The local model extracted all
+> **1,447 filings with 0 failures** at $0 (6.23M prompt tokens, mean 28.8
+> s/document). One result is missing and one carries a caveat:
 >
 > - **The Claude comparison is not run.** It needs `ANTHROPIC_API_KEY`, which
 >   this checkout does not have, so the three-extractor comparison is a
@@ -269,6 +270,51 @@ pathology abstention metrics exist to expose.
 0-3 ordinal for "density of hedging language" is the one field neither a regex nor
 a 7B model can do, and it is the field most likely to be underspecified rather
 than merely hard.
+
+### Extraction stability, and the one result that is statistically solid
+
+Three runs at temperature 1.0 over 40 documents, no gold labels needed. Mean modal
+agreement **0.909**; least stable field `hedging_intensity` at 0.750, unanimous on
+only 32.5% of documents.
+
+The useful part is not the headline number, it is that **self-consistency predicts
+accuracy**. Across all 17 graded fields, per-field agreement correlates with
+per-field accuracy at **Pearson r = 0.715 (p = 0.0013)**, Spearman rho = 0.705
+(p = 0.0016):
+
+| field | agreement | accuracy |
+|---|---:|---:|
+| `hedging_intensity` | 0.750 | 0.267 |
+| `guidance_horizon_quarters` | 0.767 | 0.600 |
+| `tone` | 0.825 | 0.467 |
+| ... | | |
+| `revenue_direction` | 0.992 | 0.950 |
+| `eps_direction` | 1.000 | 0.850 |
+| `executive_transition` | 1.000 | 0.967 |
+
+This matters because self-consistency **needs no labels and scales to the entire
+corpus**, while accuracy needs a gold set that costs a human day. If agreement
+tracks accuracy, you can screen which fields to trust on 1,447 documents instead of
+60 - and decide a field is unusable before paying to label it.
+
+Note the asymmetry: it is a one-way test. A field the model agrees with itself on
+can still be confidently and consistently wrong (`announced_impairment` is
+unanimous on every document and only 0.800 accurate). Low agreement is strong
+evidence of a bad field; high agreement is weak evidence of a good one.
+
+`hedging_intensity` sits at the bottom of *both* measurements - worst accuracy for
+both extractors (0.25 and 0.27) and worst stability (0.750, unanimous on a third of
+documents). Two independent measurements agreeing that a field is broken is the
+case for the field being **underspecified rather than hard**: "density of hedging
+language, 0-3" does not pin down what a 1 is versus a 2, so the model disagrees
+with itself and with the labels for the same reason. That is a schema bug, not a
+model failure, and it is the first thing I would fix next.
+
+Three caveats: 17 fields is a small sample for a correlation, the accuracy side
+inherits the model-labeled gold set's caveat, and this is a correlation *across
+fields*, not a per-document predictor.
+
+![consistency](reports/figures/consistency.png)
 
 Abstention, the local model against the same gold set:
 
