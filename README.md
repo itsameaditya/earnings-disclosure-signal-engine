@@ -107,7 +107,7 @@ extraction against known answers can. Both prompts are kept side by side in the 
 **Half of an earnings release is not an earnings release.** Press releases are a
 narrative followed by financial statement tables. Every field in the schema is
 answerable from the narrative; none needs the tables. Trimming at the statement
-header (`textprep.py`) cut the corpus **54%**, and - more importantly - took the
+header (`textprep.py`) cut the corpus **52%**, and - more importantly - took the
 share of documents overflowing a 16k context window from **11.2% to zero**. Those
 would have been truncated silently, producing confident claims based on partial text.
 
@@ -121,19 +121,14 @@ convenient proxy.
 
 ## Results
 
-> **Status.** The dataset, the rule-based control, and the methodology below are
-> final. Two results are still open, and both are open for stated reasons rather
-> than as placeholders:
+> **Status.** Both loops are measured on the full corpus. The local model
+> extracted all **1,447 filings with 0 failures** at $0 (6.23M prompt tokens,
+> mean 28.8 s/document). One result is still missing and one carries a caveat:
 >
-> - **The local-LLM ablation row.** Extraction over all 1,447 filings runs at
->   131-199 prompt tokens/second depending on concurrency, which is roughly 9-22
->   s/document depending on how long the filings in that stretch happen to be
->   (see *On local concurrency* below - per-document timings are not comparable
->   across this corpus). Extraction is cached per document and resumable, so it
->   costs nothing but wall-clock. Partial results are deliberately not reported:
->   the corpus is ordered by issuer, so any prefix is a handful of tech mega-caps
->   rather than a sample, and an AUC computed on it would be a tech-sector number
->   wearing a corpus-wide label.
+> - **The Claude comparison is not run.** It needs `ANTHROPIC_API_KEY`, which
+>   this checkout does not have, so the three-extractor comparison is a
+>   two-extractor comparison. The README's "~$18 for the corpus" is an
+>   unverified estimate, not a measurement.
 > - **Extraction accuracy is measured, but against a model-labeled gold set.**
 >   All 60 gold documents are labeled, and the rule-based control is graded
 >   against them below - but the labels were produced by `claude-opus-5` reading
@@ -181,10 +176,10 @@ A third of this sample cannot trade on the news until the next session. Treating
 state alone reaches 0.686 AUC, and pre-announcement realized volatility is by far the
 strongest single feature (+0.091 AUC drop under permutation).
 
-That is the bar. It is also the result that makes the ablation worth running: an
+That is the bar, and it is the result that makes the ablation worth running: an
 extractor can produce 1,447 clean, schema-valid records and still contribute zero
-signal. Whether a real LLM clears this bar is the open question this repo exists
-to answer, and a negative answer there would be reported just as plainly.
+signal. The local model clears it, barely - **+0.0106 AUC against -0.0012** - and
+the section below is careful about how little that margin establishes.
 
 ![ablation](reports/figures/ablation_baseline.png)
 
@@ -194,16 +189,104 @@ so the model is separating events weakly even where it is well-calibrated.
 
 ![reliability](reports/figures/reliability_baseline.png)
 
+### Prediction - local-LLM claims
+
+Full corpus, 1,445 events, gbm + isotonic calibration, purged time splits.
+
+| feature set | AUC | Brier | Brier skill | ECE |
+|---|---:|---:|---:|---:|
+| controls only | 0.6864 | 0.2253 | +0.0916 | 0.0610 |
+| claims only | 0.5137 | 0.2559 | -0.0316 | 0.0788 |
+| controls + claims | **0.6970** | **0.2219** | **+0.1052** | **0.0552** |
+
+**Incremental value of LLM claims over market state alone: +0.0106 AUC, +0.0136
+Brier skill, and ECE improves 0.0610 to 0.0552.** The same ablation with
+keyword-extracted claims gives **-0.0012 AUC**. So the answer to the question
+this repo was built to ask is: yes, marginally - and only in combination.
+
+Three things keep that from being a strong claim, and they matter more than the
+sign of the number:
+
+1. **+0.0106 AUC is inside the noise on one test split.** 289 test events at a
+   47% base rate put the standard error on AUC near 0.03, and the permutation
+   importances below carry standard deviations of 0.003-0.016. This result is
+   directionally positive and **not statistically established**. A bootstrap over
+   splits, which this repo does not yet do, is what would settle it.
+2. **Claims alone are barely better than a coin flip** - 0.5137 AUC, and a
+   *negative* Brier skill of -0.0316, meaning the claims-only model is worse
+   calibrated than predicting the base rate. Whatever the claims contribute, they
+   contribute it only alongside market state.
+3. **Market state still dominates.** `log_rv_pre` alone drops AUC by 0.0875 under
+   permutation. The best claim feature, `dividend_action__increased`, drops it by
+   0.0077 - an order of magnitude less - and only three claim features appear in
+   the top ten at all.
+
+The honest summary is that a 7B model reading an earnings release adds about a
+percentage point of AUC over the market's own state, where a keyword extractor
+adds nothing, on a sample too small to call it significant. That is a more useful
+result than either "LLMs work" or "LLMs don't."
+
+![ablation](reports/figures/ablation_local.png)
+
+![reliability](reports/figures/reliability_local.png)
+
 ### Extraction quality - rule-based control
 
 60 documents, 17 graded fields, against the model-labeled gold set described above.
 
-| metric | rule-based |
-|---|---:|
-| mean field accuracy | 0.584 |
-| mean macro-F1 | 0.490 |
-| document exact match | **0.000** |
-| worst field | `hedging_intensity` (0.25) |
+| metric | rule-based | local LLM |
+|---|---:|---:|
+| mean field accuracy | 0.584 | **0.712** |
+| mean macro-F1 | 0.490 | **0.629** |
+| document exact match | 0.000 | 0.000 |
+| worst field | `hedging_intensity` (0.25) | `hedging_intensity` (0.27) |
+
+Unlike the ablation, **this gap is not subtle**: +12.8 points of field accuracy
+and +13.9 of macro-F1. It is also the more interesting half of the project, because
+it says *where* the model earns its place:
+
+| field | rule-based | local LLM | delta |
+|---|---:|---:|---:|
+| `revenue_yoy_pct` | 0.283 | 0.800 | **+0.517** |
+| `dividend_action` | 0.550 | 0.917 | +0.367 |
+| `non_gaap_emphasis` | 0.350 | 0.633 | +0.283 |
+| `revenue_direction` | 0.683 | 0.950 | +0.267 |
+| `eps_direction` | 0.583 | 0.850 | +0.267 |
+| `segment_weakness_disclosed` | 0.400 | 0.650 | +0.250 |
+| `guidance_horizon_quarters` | 0.800 | 0.600 | -0.200 |
+| `tone` | 0.650 | 0.467 | -0.183 |
+
+The `revenue_yoy_pct` row is the third lesson above, now quantified: the regex
+finds a stated revenue percentage 28% of the time, the model 80%. And the two
+fields where the regex "wins" both come with a catch. On `tone` the model really
+is worse, but both are bad and the regex's edge is mostly majority-class guessing -
+macro-F1 is 0.273 against 0.319, a far smaller gap than accuracy suggests. On
+`margin_direction` the regex wins accuracy by 0.100 while *losing* macro-F1 by
+0.175: it scores by abstaining into the majority answer, which is the exact
+pathology abstention metrics exist to expose.
+
+`hedging_intensity` is the worst field for both extractors (0.25 and 0.27). A
+0-3 ordinal for "density of hedging language" is the one field neither a regex nor
+a 7B model can do, and it is the field most likely to be underspecified rather
+than merely hard.
+
+Abstention, the local model against the same gold set:
+
+| field | gold abstains | model abstains | precision | recall |
+|---|---:|---:|---:|---:|
+| `dividend_action` | 81.7% | 80.0% | 0.979 | 0.959 |
+| `margin_direction` | 65.0% | 26.7% | 1.000 | 0.410 |
+| `guidance_action` | 28.3% | 41.7% | 0.640 | 0.941 |
+| `revenue_yoy_pct` | 20.0% | 6.7% | 1.000 | 0.333 |
+
+The model's abstention failure is the **mirror image** of the baseline's. The
+regex over-abstained on `revenue_yoy_pct` (53% against a gold 20%), missing
+percentages that were printed in plain text. The model under-abstains - 6.7%
+against a gold 20%, and 26.7% against 65% on `margin_direction` - answering where
+the release says nothing. Its abstentions are almost always right when it makes
+them (precision 1.000 on both), it just does not make enough of them. That is the
+same bias the prompt-portability finding above created: the short prompt that
+recovered recall also taught the model to answer rather than decline.
 
 **The control never gets a whole filing right** - not once in 60 documents, across
 17 fields. That is the number that makes the ablation above legible: keyword

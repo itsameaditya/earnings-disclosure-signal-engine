@@ -281,7 +281,14 @@ def register(sub) -> None:
     p.set_defaults(func=cmd_eval_extraction)
 
     p = sub.add_parser("consistency", help="measure extraction stability across repeated runs")
-    p.add_argument("--extractor", choices=["claude", "baseline"], default="claude")
+    # `local` is the project's default extractor and was missing from `choices`
+    # entirely, so `edse consistency` could not be run on it at all -- and the
+    # default was `claude`, which needs an API key, so the command failed outright
+    # on a free checkout. Fourth instance of the same hard-coded-extractor-list
+    # bug in this file and cli.py.
+    p.add_argument(
+        "--extractor", choices=["local", "baseline", "claude"], default="local"
+    )
     p.add_argument("--model", default=None)
     p.add_argument("--runs", type=int, default=None)
     p.set_defaults(func=cmd_consistency)
