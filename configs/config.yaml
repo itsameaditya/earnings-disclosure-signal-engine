@@ -22,14 +22,22 @@ extraction:
   # (max prepared length ~64k chars ~= 17k tokens), so nothing is silently cut.
   local_num_ctx: 32768
   # Concurrent requests to the local server. Measured on a 16 GiB M4 (11.8 GiB
-  # of usable VRAM): 2 slots ran 1.27x the throughput of serial extraction.
+  # of usable VRAM): 2 slots ran 1.27x the throughput of serial extraction on a
+  # controlled benchmark, and 1.52x on corpus windows matched for prompt length
+  # (131.0 -> 199.3 prompt tokens/s). Compare throughput, never s/document --
+  # this corpus is ordered by issuer, so document length moves more than
+  # concurrency does.
   #
-  # Two things bound this at 2. Ollama preserves `local_num_ctx` *per slot* by
-  # scaling total context (`-c 65536 -np 2`), so each added slot costs another
-  # ~1.9 GB of KV cache for qwen2.5:7b at 32k; 3 slots plus 4.7 GB of weights
-  # reaches ~10.3 GB against 11.8 GiB, at which point Ollama shrinks the
-  # physical batch again and prefill -- 20:1 of the token volume here -- gets
-  # slower, not faster.
+  # Memory is what bounds this at 2, not throughput. Ollama preserves
+  # `local_num_ctx` *per slot* by scaling total context (`-c 65536 -np 2`), so
+  # each added slot costs another ~1.9 GB of KV cache for qwen2.5:7b at 32k.
+  # Two slots already sit at ~8.4 GB resident and push a 16 GiB machine into
+  # swap on a long run; 3 would reach ~10.3 GB against 11.8 GiB usable and also
+  # shrink the physical batch, which makes prefill slower.
+  #
+  # Do not "fix" the memory pressure by lowering local_num_ctx: it is part of
+  # the extraction cache key, so changing it discards every cached extraction
+  # and restarts the corpus from zero.
   #
   # This only helps if the server was started with a matching
   # OLLAMA_NUM_PARALLEL; against the default of 1 the requests genuinely do

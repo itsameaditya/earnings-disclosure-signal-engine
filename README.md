@@ -125,12 +125,12 @@ convenient proxy.
 > final. Two results are still open, and both are open for stated reasons rather
 > than as placeholders:
 >
-> - **The local-LLM ablation row.** Extraction over all 1,447 filings runs at a
->   measured ~13 s/document serial and ~9.6 s/document with two concurrent
->   requests: a 1.28x end-to-end gain over a 1,000-document run, which lands on
->   the 1.27x from the length-controlled comparison in *On local concurrency*
->   below. Extraction is cached per document and resumable, so it costs nothing
->   but wall-clock. Partial results are deliberately not reported:
+> - **The local-LLM ablation row.** Extraction over all 1,447 filings runs at
+>   131-199 prompt tokens/second depending on concurrency, which is roughly 9-22
+>   s/document depending on how long the filings in that stretch happen to be
+>   (see *On local concurrency* below - per-document timings are not comparable
+>   across this corpus). Extraction is cached per document and resumable, so it
+>   costs nothing but wall-clock. Partial results are deliberately not reported:
 >   the corpus is ordered by issuer, so any prefix is a handful of tech mega-caps
 >   rather than a sample, and an AUC computed on it would be a tech-sector number
 >   wearing a corpus-wide label.
@@ -324,10 +324,31 @@ physical batch (`-ub 1024` to `-ub 512`) and made prefill itself less efficient.
 On this 16 GiB machine (11.8 GiB usable) a third slot would reach ~10.3 GB with
 weights and shrink the batch again, so `local_max_workers` is 2.
 
-The controlled figure held up at scale: the production run over ~1,000 documents
-came in at 9.56 s/document against 12.2 serial, a 1.28x gain. An earlier reading
-of 1.69x was measured over 25 documents and was a short-window artifact - the
-corpus is ordered by issuer, so a brief stretch can be all short filings.
+At corpus scale the gain is larger, and getting there required throwing out
+s/document as a metric. The corpus is ordered by issuer, so consecutive
+documents are not a sample: one stretch of the production run slowed to 21.9
+s/document and looked like a regression, but its filings averaged 7,205 prompt
+tokens against 1,705 earlier - 4.2x longer - and on a throughput basis it was
+the *fastest* window observed, at 346 prompt tokens/s. Comparing two windows at
+matched mean prompt length instead:
+
+| corpus window | mean prompt tokens | prompt tokens/s |
+|---|---:|---:|
+| serial, 73 documents | 1,767 | 131.0 |
+| two workers, 54 documents | 1,705 | 199.3 |
+
+**1.52x**, against 1.27x in the controlled benchmark above. The benchmark
+sampled across the whole length distribution (~4.4k prompt tokens/document) and
+these windows are ~1.7k, which is the direction you would expect: shorter
+documents spend proportionally more time in decode, and decode is the part that
+batches well. Read the two numbers as a range that depends on document length,
+not as one estimate and one error.
+
+The cost is memory, and it is the reason `local_max_workers` is 2 rather than
+higher. Two slots hold ~8.4 GB resident (7.68 GB of it the `llama-server`
+process) on a 16 GiB machine, which is enough to push the system into swap
+during a long run. That is survivable here because extraction is cached and
+resumable, but it is the constraint that binds first - not GPU throughput.
 
 The part that generalizes: **the speedup only exists if the server was started
 with a matching `OLLAMA_NUM_PARALLEL`.** Against the default of 1 the requests
